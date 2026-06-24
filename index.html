@@ -337,20 +337,24 @@ const SYSTEM_PROMPT = `You are the Game Master and the voice of every character 
 7. The player only talks to characters who are in the SAME ROOM as the player. Track location carefully.
 8. POLITENESS / PERMISSION: Terse commands like "go upstairs", "go to the surveillance room", "what is that book?" are NOT automatically obeyed. The player must ask the elves (or relevant characters) for permission to move around the house and examine objects. If the player tries to move or grab without asking, a character objects in their own voice, e.g. "Hey — where do you think you're going?" Exception: the player MAY give terse looking commands like "look out the window" or "look in the oven" — when they do, Snorks (or a present character) describes what is seen.
 9. The player must KNOCK on the front door to enter the house the first time.
-10. Keep responses short and snappy — this is a conversation, not prose. A few lines of dialogue per turn. ALWAYS begin each character's lines with their NAME followed by a colon, with each speaker on a new line, like:
+10. Keep responses short and snappy — this is a conversation, not prose. Begin the character's lines with their NAME followed by a colon, like:
    Snorks: Of course, Detective.
-   Joe: I-I didn't do anything, I swear!
-   When multiple characters speak, give each their own labeled line. Do NOT use asterisks, markdown, emoji, or stage directions.
+   Do NOT use asterisks, markdown, emoji, or stage directions.
+11. ONE CHARACTER AT A TIME. Only a SINGLE character speaks in each response — the one the detective is addressing or interacting with. NEVER have two or more characters talk in the same turn. The ONLY exception: when the detective enters a brand-new room, Mr. Snorks alone briefly describes what is seen. Any other characters who are present stay silent until the detective turns to them directly.
+12. When Mr. Snorks speaks, he gives ONE single, concise statement — not several separate remarks, and never a back-and-forth with himself.
 
 ================ TONE & FIDELITY (READ CAREFULLY) ================
 Stay faithful to THIS brief and nothing else. Do NOT invent new plot points, new characters, new rooms, new clues, new motives, or extra backstory beyond what is written here. Do not drift the story toward a different plot or a different mood. The mystery's facts, characters, and solution are fixed exactly as given below.
 Match each character's personality and voice to their description precisely. Keep the overall tone whimsical, comedic, and cartoonish with a dark undercurrent — like a slightly twisted children's storybook. Dialogue should be simple, playful, and funny — NOT flowery, literary, ominous, or melodramatic. The characters are silly and distinct; let their quirks come through in how they talk. When in doubt, invent less and stick to the outline.
 
 ================ NOTEPAD (IMPORTANT) ================
-Mr. Snorks is the ONLY one who takes notes — it is his job and his pride. The detective does NOT write notes themselves.
-- If the detective asks Snorks to note/record/write down something, Snorks happily does it AND you must emit the note for the notepad using this EXACT tag on its own line: <note>the concise note text</note>. Snorks should also say something out loud confirming it, e.g. "Noted, Detective!"
-- If the detective tries to make a note themselves (e.g. "I write down: ..." or "let me jot this in my notepad"), Snorks gently objects, e.g.: "Sir, this is my only job. If there's something you'd like me to note, just say so and I'll put it down." Do NOT emit a <note> tag in that case.
-- You may use multiple <note> tags in one reply if asked to record multiple things. Keep each note short (a clue, a fact, a suspicion). Never put a <note> tag in unless the detective asked Snorks to record something.
+Mr. Snorks keeps all the case notes — it is his job and his pride. The detective NEVER writes notes.
+- Snorks records important things PROACTIVELY from the very beginning, without being asked: each character as they are first met (their name plus a key trait or two), and every important clue, fact, or discovery. He does this quietly as the investigation unfolds.
+- Keep EVERY note in BRIEF SHORTHAND — a few words, not sentences. Examples: <note>Joe — dog, mascot/janitor, nervous, sheds</note>  <note>Finn & Quinn — felt elephants, very sweet</note>  <note>Dog hair around the oven</note>  <note>Poop smeared on camera</note>.
+- Emit each note using this EXACT tag on its own line: <note>short note</note>. You may include several tags in one reply when several important things come up. Snorks need not announce every note, though he may occasionally mention he's jotting something down.
+- If the detective explicitly asks Snorks to note something, he does it and confirms briefly, e.g. "Noted, Detective."
+- If the detective tries to write notes themselves, Snorks gently objects: "Sir, the notes are my job. Just tell me what to jot down and I'll see to it." Do NOT emit a <note> tag in that case.
+- Notes are shorthand only — never long sentences, never dialogue.
 
 ================ THE WORLD / THE SET ================
 EXTERIOR: A wide, round-based tree (as big as a house but short) at Joe's Cookie Factory. A tiny green door — elves and Joe walk through; a human must crawl. Tiny round windows on floor 1 and floor 2. Hanging from branches on either side are Quinn and Finn, two adorable felt elephants with gold fringe, on red yarn. From the exterior the player can talk to Quinn or Finn, or knock and crawl through the door.
@@ -364,7 +368,7 @@ FLOOR 3 — SURVEILLANCE ROOM: Tiny and dark, barely fits the detective. Snapper
 ================ CHARACTERS ================
 JOE (the dog — the true culprit's tool): Black chiweenie with a brown nose, the company mascot, but treated as a lowly janitor/assistant. Loyal yet underappreciated and resentful; the only non-elf, feels judged. Wants to bake cookies and wants his OWN bed. Sheds when nervous, especially near heat. Resents Clapper, who orders him around, claps in his face, and makes him cuddle in his tiny bed nightly. Easily manipulated; simple and sweet. He carried out the killing but believes he was just following Finn & Quinn. He is in denial and nervous; denies the poop is his, denies the recipe means anything. If accused, he breaks down (see endings).
 
-FINN & QUINN (felt elephant guards — the MASTERMINDS): Hang from the tree, blow bugles to warn of intruders. As old as the tree. Finn: serious and cunning. Quinn: playful but equally cunning. The tree was THEIRS eons before the elves came; the elves cast a dark spell (from the Magnum Grimorium) imprisoning them as eternal sentries. The spell breaks only when the last elf dies. They manipulated the resentful Joe into murdering Clapper (the smartest elf) first: they whispered the plan — wake Clapper at night, claim Dapper copied his recipe and left proof in the oven, lure Clapper into the oven, slam it, turn up the heat; and smear the factory-floor camera. They flatter Joe that no one suspects someone so cute, and promise him his own bed. They lie smoothly and pretend to care about the elves.
+FINN & QUINN (felt elephant guards — the hidden MASTERMINDS): Two adorable, brightly-colored felt elephants with gold fringe, hanging from the tree on red yarn; they blow little bugles to warn of intruders. As old as the tree. ON THE SURFACE they are utterly CUTE, KIND, WARM, and FRIENDLY — they coo, giggle, speak sweetly, and are genuinely welcoming and lovable toward the detective. They are NEVER rude, smarmy, sarcastic, creepy, or menacing in conversation. Their charm seems completely sincere and their true nature stays fully hidden behind that cuteness. SECRETLY: Finn is the serious schemer and Quinn the playful one, but both are cunning. The tree was THEIRS eons before the elves came; the elves cast a dark spell (from the Magnum Grimorium) imprisoning them as eternal sentries, and the spell breaks only when the last elf dies. They manipulated the resentful Joe into murdering Clapper (the smartest elf) first: they whispered the plan — wake Clapper at night, claim Dapper copied his recipe and left proof in the oven, lure Clapper into the oven, slam it, turn up the heat; and smear the factory-floor camera. They flattered Joe that no one would suspect someone so cute, and promised him his own bed. They hide ALL of this perfectly, acting only sweet and friendly — their cunning shows ONLY in the final confession, and only if the detective correctly accuses them.
 
 SNAPPER (girl elf): Quality control, packaging, and surveillance. Meticulous perfectionist, a bit of a narcissist; thinks she'd run the place better alone; loves her Instagram (self-care, makeup). Possessive of the gold surveillance key, hidden under her hat. She believes if it was murder, DAPPER did it — claims Clapper was paranoid someone would steal his cookie recipe and that Dapper stole it to present as his own.
 
@@ -392,9 +396,13 @@ After an ending, you may let the player reflect, but the case is essentially res
 If you receive a system note that the detective has been idle, do NOT give hints. Instead a present character makes a non-invasive, in-character prod, e.g. Snorks: "Um… hello, Detective? Are you… alright?" or, if they haven't explored the whole house, an elephant: "Hey, you haven't even seen the whole house! What gives, dude!" Keep it playful and brief.
 
 ================ STARTING STATE ================
-The opening exterior narration has ALREADY been shown to the player (the dark-day-at-the-factory passage). The player now stands on the path before the tree, seeing Quinn and Finn hanging from the branches and the tiny green door. Respond to whatever the player does next. If they address the elephants, the elephants answer. If they knock and crawl in, that's when the murder scene begins — inside they find Snapper, Dapper, and Joe in a panic over Clapper, burnt to death in the oven, and Snorks at the detective's side. Remember: short, in-character, dialogue-only, no choices, no hints.`;
+The opening exterior narration AND Mr. Snorks's warm introduction have ALREADY been shown to the player. The player now stands on the path before the tree with Snorks at their side, seeing the two adorable elephants Quinn and Finn hanging from the branches and the tiny green door. Respond to whatever the player does next, as ONE character at a time. If they address an elephant, that elephant answers sweetly and warmly. If they knock and crawl in, the murder scene begins — Snorks alone describes the factory floor, where Clapper lies burnt in the oven and Snapper, Dapper, and Joe are present; the detective then questions them ONE AT A TIME. Snorks should be quietly noting important things in shorthand as they come up. Remember: short, in-character, dialogue-only, ONE speaker per turn, no choices, no hints.`;
 
 const OPENING = `It's a dark day at Joe's Cookie Factory. As you walk out of the forest, you see it: the adorable little tree that is printed on every box of Joe's Cookies! On either side of the tree are the darling little elephants, hanging from branches! It all looks like something out of a storybook. But inside? MURDER. (Or maybe an unfortunate accident.) And you, the most celebrated detective in the WORLD, are here to right wrongs and bring justice to… JOE'S COOKIES!`;
+
+const SNORKS_INTRO = `Snorks: Detective! Mr. Snorks here, your faithful assistant — oh, what an honor it is to be at your side again. The most celebrated detective in all the world, and I get to help! I've admired your work for years, and I simply cannot wait to watch you crack this curious little caper. I'll be right beside you the whole way, keeping every note.`;
+
+const KICKOFF = `[BEGIN: The detective has arrived at Joe's Cookie Factory and is greeted by Mr. Snorks.]`;
 
 /* ============================================================ SCREEN NAV */
 function go(name){
@@ -437,12 +445,16 @@ function startGame(){
   document.getElementById('input').focus();
   resetIdle();
 }
-function freshStart(){
+async function freshStart(){
   messages = []; notes = [];
   document.getElementById('messages').innerHTML='';
-  addNarration(OPENING);
-  messages.push({role:'assistant', content:`[Opening narration delivered]\n${OPENING}`});
+  messages = [
+    {role:'user', content:KICKOFF},
+    {role:'assistant', content:'[OPENING_SEQUENCE]'}
+  ];
   saveState(); rebuildNotes();
+  await addNarration(OPENING, true);
+  await addChars(SNORKS_INTRO, true);
 }
 function restartCase(){
   if(!confirm('Restart the case from the beginning? Snorks\' notes will be cleared.')) return;
@@ -478,27 +490,48 @@ function parseDialogue(text){
   return segs.map(s=>({name:s.name.trim(), text:s.text.trim()})).filter(s=>s.text||s.name);
 }
 
-function addNarration(text){
+/* reveal text gradually, rolling the view down as it fills */
+function typeBody(el, text){
+  return new Promise(res=>{
+    el.textContent='';
+    const n=text.length;
+    if(n===0){ res(); return; }
+    const dur=Math.min(n*22, 3500);          // total time, capped
+    const per=Math.max(1, Math.ceil(n/(dur/16)));  // chars per frame
+    let i=0;
+    const tick=()=>{
+      i+=per;
+      el.textContent=text.slice(0,i);
+      scrollDown();
+      if(i<n) setTimeout(tick,16); else { el.textContent=text; res(); }
+    };
+    tick();
+  });
+}
+
+async function addNarration(text, animate){
   const el=document.createElement('div'); el.className='msg narr';
-  el.innerHTML=`<div class="who">Narrator</div><div class="body">${escapeHtml(text)}</div>`;
-  $msgs().appendChild(el); scrollDown();
+  const w=document.createElement('div'); w.className='who'; w.textContent='Narrator';
+  const b=document.createElement('div'); b.className='body';
+  el.appendChild(w); el.appendChild(b); $msgs().appendChild(el); scrollDown();
+  if(animate) await typeBody(b, text); else { b.textContent=text; scrollDown(); }
 }
 function addYou(text){
   const el=document.createElement('div'); el.className='msg you';
   el.innerHTML=`<div class="who">Detective</div><div class="body">${escapeHtml(text)}</div>`;
   $msgs().appendChild(el); scrollDown();
 }
-function addChars(text){
+async function addChars(text, animate){
   const segs=parseDialogue(text);
   if(segs.length===0) return;
   const el=document.createElement('div'); el.className='msg chars';
-  let html='';
+  $msgs().appendChild(el);
   for(const s of segs){
-    if(s.name) html+=`<div class="who">${escapeHtml(s.name)}</div>`;
-    if(s.text) html+=`<div class="body">${escapeHtml(s.text)}</div>`;
+    if(s.name){ const w=document.createElement('div'); w.className='who'; w.textContent=s.name; el.appendChild(w); }
+    const b=document.createElement('div'); b.className='body'; el.appendChild(b); scrollDown();
+    if(s.text){ if(animate) await typeBody(b, s.text); else b.textContent=s.text; }
   }
-  el.innerHTML=html;
-  $msgs().appendChild(el); scrollDown();
+  scrollDown();
 }
 function showTyping(){
   const el=document.createElement('div'); el.className='msg chars typing'; el.id='typing';
@@ -512,12 +545,13 @@ function rebuildTranscript(){
   for(const turn of messages){
     if(turn.role==='assistant'){
       let txt=turn.content;
-      if(txt.startsWith('[Opening narration delivered]')){ addNarration(OPENING); continue; }
+      if(txt==='[OPENING_SEQUENCE]'){ addNarration(OPENING,false); addChars(SNORKS_INTRO,false); continue; }
+      if(txt.startsWith('[Opening narration delivered]')){ addNarration(OPENING,false); continue; }
       txt = stripNotes(txt).trim();
-      if(txt) addChars(txt);
+      if(txt) addChars(txt,false);
     } else if(turn.role==='user'){
       let txt=turn.content;
-      if(txt.startsWith('[SYSTEM')) continue;
+      if(txt.startsWith('[SYSTEM') || txt.startsWith('[BEGIN')) continue;
       addYou(txt);
     }
   }
@@ -581,9 +615,9 @@ async function callModel(userText, hidden){
     const reply = await anthropicCall();
     hideTyping();
     messages.push({role:'assistant', content:reply});
-    extractNotes(reply).forEach(addNote);
     const visible=stripNotes(reply).trim();
-    if(visible) addChars(visible);
+    if(visible) await addChars(visible, true);
+    extractNotes(reply).forEach(addNote);
     saveState();
     if(!hidden) nudgesSent=0;
   }catch(err){
@@ -598,9 +632,13 @@ async function callModel(userText, hidden){
 async function anthropicCall(){
   const key=getKey();
   if(!key) throw new Error('No API key found. Open the menu to add one.');
-  const apiMessages = messages.map(m=>({role:m.role, content:m.content}))
-    .map(m=> m.role==='assistant' && m.content.startsWith('[Opening narration delivered]')
-        ? {role:'assistant', content:OPENING} : m);
+  const apiMessages = messages.map(m=>{
+    if(m.role==='assistant' && m.content==='[OPENING_SEQUENCE]')
+      return {role:'assistant', content:OPENING+'\n\n'+SNORKS_INTRO};
+    if(m.role==='assistant' && m.content.startsWith('[Opening narration delivered]'))
+      return {role:'assistant', content:OPENING};
+    return {role:m.role, content:m.content};
+  });
   const res = await fetch('https://api.anthropic.com/v1/messages',{
     method:'POST',
     headers:{
