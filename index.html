@@ -17,6 +17,9 @@
     --ink-faint:#8a7e66;
     --rule:#ccc1a3;        /* ruled-line / hairline color */
     --red:#6e1f15;         /* deep printer's red */
+    --np:#f7efb8;          /* notepad legal-pad yellow */
+    --np2:#eee29a;         /* notepad header/tab yellow */
+    --np-rule:#dcca77;     /* notepad ruled lines */
   }
   *{box-sizing:border-box;-webkit-tap-highlight-color:transparent;}
   html,body{height:100%;margin:0;}
@@ -138,30 +141,17 @@
   .messages::-webkit-scrollbar{width:10px;}
   .messages::-webkit-scrollbar-thumb{background:var(--rule);}
 
-  .msg{max-width:680px;width:100%;margin:0 auto;animation:rise .3s ease both;}
+  .msg{max-width:680px;width:100%;margin:0 auto;animation:rise .3s ease both;text-align:left;}
   @keyframes rise{from{opacity:0;transform:translateY(6px)}to{opacity:1;transform:none}}
 
-  /* narration = centered italic, like a book's set-the-scene line */
-  .msg.narr{text-align:center;}
-  .msg.narr .body{
-    font-style:italic;color:var(--ink-soft);font-size:18px;line-height:1.6;
-    max-width:560px;margin:0 auto;padding:6px 6px;
-    border-top:1px solid var(--rule);border-bottom:1px solid var(--rule);
-  }
+  /* speaker / narrator name — bold, on its own line above the text */
+  .who{font-weight:bold;font-size:18px;color:var(--ink);margin:12px 0 1px;}
+  .who:first-child{margin-top:0;}
+  .msg.narr .who, .msg.you .who{color:var(--red);}
 
-  /* character dialogue = printed page text */
-  .msg.chars .body{
-    font-size:19px;line-height:1.6;color:var(--ink);white-space:pre-wrap;
-  }
-
-  /* the detective's own lines = indented, tinted, like a quoted aside */
-  .msg.you{display:flex;justify-content:flex-end;}
-  .msg.you .inner{max-width:80%;}
-  .msg.you .who{font-variant:small-caps;letter-spacing:.1em;font-size:13px;color:var(--red);text-align:right;margin-bottom:3px;}
-  .msg.you .body{
-    background:var(--page3);border:1px solid var(--rule);
-    padding:9px 13px;font-size:18px;line-height:1.5;color:var(--ink);white-space:pre-wrap;font-style:italic;
-  }
+  /* all body text — flush left, printed-page serif */
+  .body{font-size:19px;line-height:1.6;color:var(--ink);white-space:pre-wrap;}
+  .msg.narr .body{color:var(--ink-soft);}
 
   .typing .body{display:inline-flex;gap:6px;align-items:center;color:var(--ink-faint);font-style:italic;}
   .typing .dot{width:6px;height:6px;background:var(--ink-faint);animation:blink 1.3s infinite;}
@@ -189,22 +179,21 @@
 
   /* ---------- notepad ---------- */
   .nptab{
-    position:absolute;top:50%;right:0;transform:translateY(-50%);
-    background:var(--page2);color:var(--ink);
-    font-variant:small-caps;letter-spacing:.1em;font-size:14px;
-    writing-mode:vertical-rl;text-orientation:mixed;
-    padding:16px 8px;cursor:pointer;z-index:20;
-    border:1px solid var(--ink);border-right:none;
-    box-shadow:-3px 3px 0 rgba(120,95,50,.18);
+    position:absolute;top:0;right:20px;
+    background:var(--np2);color:var(--ink);
+    font-variant:small-caps;letter-spacing:.1em;font-size:15px;
+    padding:7px 18px;cursor:pointer;z-index:20;
+    border:1px solid var(--ink);border-top:none;
+    box-shadow:2px 3px 0 rgba(120,95,50,.18);
   }
-  .nptab:hover{background:#fff;}
+  .nptab:hover{filter:brightness(1.04);}
 
   .notepad{
     position:absolute;top:0;right:0;height:100%;
     width:min(360px,86vw);
     background:
-      repeating-linear-gradient(transparent,transparent 33px,var(--rule) 33px,var(--rule) 34px),
-      var(--page);
+      repeating-linear-gradient(transparent,transparent 33px,var(--np-rule) 33px,var(--np-rule) 34px),
+      var(--np);
     color:var(--ink);
     box-shadow:-10px 0 30px rgba(60,45,20,.35);
     transform:translateX(105%);
@@ -215,15 +204,15 @@
   .notepad.open{transform:translateX(0);}
   .nphead{
     flex:0 0 auto;display:flex;align-items:center;justify-content:space-between;
-    padding:12px 14px 8px;border-bottom:1px solid var(--ink);background:var(--page2);
+    padding:12px 14px 8px;border-bottom:1px solid var(--ink);background:var(--np2);
   }
   .nphead .h{font-variant:small-caps;letter-spacing:.06em;font-size:18px;color:var(--ink);}
   .npclose{
-    background:var(--page);color:var(--ink);border:1px solid var(--ink);
+    background:var(--np);color:var(--ink);border:1px solid var(--ink);
     width:30px;height:30px;font-size:15px;cursor:pointer;line-height:1;
     font-family:'Times New Roman',Times,serif;
   }
-  .npclose:hover{background:#fff;}
+  .npclose:hover{filter:brightness(1.04);}
   .npbody{
     flex:1 1 auto;overflow-y:auto;padding:6px 18px 18px;
     font-size:17px;line-height:34px;color:var(--ink);
@@ -234,7 +223,7 @@
   .npfoot{
     flex:0 0 auto;padding:8px 16px calc(10px + env(safe-area-inset-bottom));
     border-top:1px solid var(--ink);font-size:14px;color:var(--ink-soft);
-    font-style:italic;text-align:center;background:var(--page2);
+    font-style:italic;text-align:center;background:var(--np2);
   }
   .scrim{
     position:absolute;inset:0;background:rgba(40,30,15,.35);opacity:0;pointer-events:none;
@@ -297,17 +286,6 @@
 <section id="game" class="screen">
   <div class="topbar">
     <div class="gtitle">Mystery of the Burnt Elf</div>
-    <button class="iconbtn" id="settingsBtn" onclick="togglePop()">Menu</button>
-  </div>
-
-  <div class="pop" id="pop">
-    <h3>Detective's Menu</h3>
-    <div class="row">
-      <button class="iconbtn" onclick="openPad();togglePop()">Open Snorks' Notepad</button>
-      <button class="iconbtn" onclick="restartCase()">Restart the Case</button>
-      <button class="iconbtn" onclick="changeKey()">Change API Key</button>
-      <p class="mini">Talk to the characters by typing. Be polite — ask permission to move around and examine things.</p>
-    </div>
   </div>
 
   <div class="stage">
@@ -359,9 +337,14 @@ const SYSTEM_PROMPT = `You are the Game Master and the voice of every character 
 7. The player only talks to characters who are in the SAME ROOM as the player. Track location carefully.
 8. POLITENESS / PERMISSION: Terse commands like "go upstairs", "go to the surveillance room", "what is that book?" are NOT automatically obeyed. The player must ask the elves (or relevant characters) for permission to move around the house and examine objects. If the player tries to move or grab without asking, a character objects in their own voice, e.g. "Hey — where do you think you're going?" Exception: the player MAY give terse looking commands like "look out the window" or "look in the oven" — when they do, Snorks (or a present character) describes what is seen.
 9. The player must KNOCK on the front door to enter the house the first time.
-10. Keep responses fairly short and snappy — this is a conversation, not prose. A few lines of dialogue per turn. Use the character's NAME as a label before their lines, like:
-   Snorks: Yes, Detective! Right away, Detective!
-   When multiple characters speak, label each.
+10. Keep responses short and snappy — this is a conversation, not prose. A few lines of dialogue per turn. ALWAYS begin each character's lines with their NAME followed by a colon, with each speaker on a new line, like:
+   Snorks: Of course, Detective.
+   Joe: I-I didn't do anything, I swear!
+   When multiple characters speak, give each their own labeled line. Do NOT use asterisks, markdown, emoji, or stage directions.
+
+================ TONE & FIDELITY (READ CAREFULLY) ================
+Stay faithful to THIS brief and nothing else. Do NOT invent new plot points, new characters, new rooms, new clues, new motives, or extra backstory beyond what is written here. Do not drift the story toward a different plot or a different mood. The mystery's facts, characters, and solution are fixed exactly as given below.
+Match each character's personality and voice to their description precisely. Keep the overall tone whimsical, comedic, and cartoonish with a dark undercurrent — like a slightly twisted children's storybook. Dialogue should be simple, playful, and funny — NOT flowery, literary, ominous, or melodramatic. The characters are silly and distinct; let their quirks come through in how they talk. When in doubt, invent less and stick to the outline.
 
 ================ NOTEPAD (IMPORTANT) ================
 Mr. Snorks is the ONLY one who takes notes — it is his job and his pride. The detective does NOT write notes themselves.
@@ -389,7 +372,7 @@ DAPPER (boy elf): Ingredient mixing & prep. Cheerful, creative; dresses dapper �
 
 CLAPPER (boy elf — THE VICTIM): Oven operator. Authoritative, demanding, a self-important bully with a fragile ego. Believed he'd created the perfect cookie and grew paranoid about the recipe (kept on one paper under his mattress), especially suspicious of Dapper's teasing. Treated Joe terribly yet considered Joe his only true friend. Sometimes cried on Quinn & Finn's shoulders about Dapper trying to steal his recipe. He is dead — burnt in the oven. (He does not speak, except possibly via flashback/footage descriptions.)
 
-MR. SNORKS (the detective's assistant): Nervous, eager, endlessly deferential — "Yes, Detective! Of course, Detective!" Always praising the detective. He takes all the notes and runs menial tasks (notes, ferrying evidence to the lab). He gives advice ONLY when the detective explicitly asks. He is the detective's companion and will be present with the detective in rooms to describe new locations.
+MR. SNORKS (the detective's assistant): A little subservient and politely deferential, but VERY SMART — sharp, observant, and quietly clever. He is helpful and respectful ("Yes, Detective.") without groveling, gushing, or repeating himself; he is NOT a bumbling sycophant. He takes all the notes and runs menial tasks (notes, ferrying evidence to the lab). He offers advice ONLY when the detective explicitly asks for it — and when he does, it is genuinely insightful and to the point. He is the detective's companion and is present in rooms to describe new locations.
 
 ================ CLUES & EVIDENCE (reveal only when investigated) ================
 FLOOR 1: Clapper's burnt body in the oven — no evidence on the body itself. Around the oven: a substantial amount of dog hair matching Joe's; a half-burnt cookie recipe written in the DOG's handwriting (Joe first insists this means nothing — he's always around the oven). An acrid smell of feces on entering; a pile of poop in the middle of the room; Snorks identifies it as DOG poop; searching reveals dog poop smeared over the surveillance camera. Joe nervously denies it's his poop. All the cookie dough has been eaten.
@@ -434,7 +417,7 @@ function saveKey(){
 function getKey(){ return localStorage.getItem(LS.key); }
 
 function changeKey(){
-  togglePop(); go('key');
+  go('key');
   const existing = getKey();
   if(existing) document.getElementById('apikey').value = existing;
 }
@@ -462,7 +445,6 @@ function freshStart(){
   saveState(); rebuildNotes();
 }
 function restartCase(){
-  togglePop();
   if(!confirm('Restart the case from the beginning? Snorks\' notes will be cleared.')) return;
   localStorage.removeItem(LS.convo); localStorage.removeItem(LS.notes);
   freshStart();
@@ -472,22 +454,50 @@ function restartCase(){
 const $msgs = ()=>document.getElementById('messages');
 function scrollDown(){ const m=$msgs(); m.scrollTop=m.scrollHeight; }
 
+/* split "Name: line" output into {name,text} segments so names render bold above */
+function parseDialogue(text){
+  const lines=text.split('\n'); const segs=[]; let cur=null;
+  for(let raw of lines){
+    const line=raw.replace(/\*/g,'').trimEnd();
+    const idx=line.indexOf(':');
+    let matched=false;
+    if(idx>0 && idx<=24){
+      const name=line.slice(0,idx).trim();
+      if(/^[A-Z][A-Za-z.'&\- ]{0,23}$/.test(name) && name.split(/\s+/).length<=3){
+        if(cur) segs.push(cur);
+        cur={name:name, text:line.slice(idx+1).trim()};
+        matched=true;
+      }
+    }
+    if(!matched){
+      if(cur){ cur.text += (cur.text?'\n':'') + line; }
+      else if(line.trim()){ cur={name:'', text:line.trim()}; }
+    }
+  }
+  if(cur) segs.push(cur);
+  return segs.map(s=>({name:s.name.trim(), text:s.text.trim()})).filter(s=>s.text||s.name);
+}
+
 function addNarration(text){
   const el=document.createElement('div'); el.className='msg narr';
-  el.innerHTML=`<div class="body"></div>`;
-  el.querySelector('.body').textContent=text;
+  el.innerHTML=`<div class="who">Narrator</div><div class="body">${escapeHtml(text)}</div>`;
   $msgs().appendChild(el); scrollDown();
 }
 function addYou(text){
   const el=document.createElement('div'); el.className='msg you';
-  el.innerHTML=`<div class="inner"><div class="who">You — Detective</div><div class="body"></div></div>`;
-  el.querySelector('.body').textContent=text;
+  el.innerHTML=`<div class="who">Detective</div><div class="body">${escapeHtml(text)}</div>`;
   $msgs().appendChild(el); scrollDown();
 }
 function addChars(text){
+  const segs=parseDialogue(text);
+  if(segs.length===0) return;
   const el=document.createElement('div'); el.className='msg chars';
-  el.innerHTML=`<div class="body"></div>`;
-  el.querySelector('.body').textContent=text;
+  let html='';
+  for(const s of segs){
+    if(s.name) html+=`<div class="who">${escapeHtml(s.name)}</div>`;
+    if(s.text) html+=`<div class="body">${escapeHtml(s.text)}</div>`;
+  }
+  el.innerHTML=html;
   $msgs().appendChild(el); scrollDown();
 }
 function showTyping(){
@@ -546,15 +556,6 @@ function closePad(){
   document.getElementById('scrim').classList.remove('show');
   const tab=document.getElementById('nptab'); tab.style.opacity='1'; tab.style.pointerEvents='auto';
 }
-
-/* ============================================================ SETTINGS POPOVER */
-function togglePop(){ document.getElementById('pop').classList.toggle('show'); }
-document.addEventListener('click',(e)=>{
-  const pop=document.getElementById('pop'); const btn=document.getElementById('settingsBtn');
-  if(pop.classList.contains('show') && !pop.contains(e.target) && e.target!==btn && !btn.contains(e.target)){
-    pop.classList.remove('show');
-  }
-});
 
 /* ============================================================ IDLE NUDGES */
 function resetIdle(){ clearTimeout(idleTimer); idleTimer=setTimeout(()=>{ if(!busy) sendIdleNudge(); },30000); }
