@@ -1,0 +1,647 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
+<title>Mystery of the Burnt Elf</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=UnifrakturCook:wght@700&display=swap" rel="stylesheet">
+<style>
+  :root{
+    --page:#f4efe0;        /* off-white book paper */
+    --page2:#efe7d3;       /* slightly deeper panel */
+    --page3:#e9dfc6;       /* tinted (player lines) */
+    --ink:#1f1a12;         /* printer's black */
+    --ink-soft:#5a5040;
+    --ink-faint:#8a7e66;
+    --rule:#ccc1a3;        /* ruled-line / hairline color */
+    --red:#6e1f15;         /* deep printer's red */
+  }
+  *{box-sizing:border-box;-webkit-tap-highlight-color:transparent;}
+  html,body{height:100%;margin:0;}
+  body{
+    font-family:'Times New Roman',Times,serif;
+    color:var(--ink);
+    background:var(--page);
+    overflow:hidden;position:fixed;width:100%;
+    -webkit-font-smoothing:antialiased;
+  }
+  /* faint paper vignette so it reads like an open book page */
+  body::before{
+    content:"";position:fixed;inset:0;pointer-events:none;z-index:0;
+    background:radial-gradient(120% 100% at 50% 40%, rgba(0,0,0,0) 60%, rgba(80,60,30,.10) 100%);
+  }
+
+  .screen{
+    position:absolute;inset:0;display:none;
+    flex-direction:column;align-items:center;justify-content:center;
+    padding:24px;text-align:center;z-index:1;
+    animation:fade .5s ease both;
+  }
+  .screen.active{display:flex;}
+  @keyframes fade{from{opacity:0}to{opacity:1}}
+
+  /* ---------- a printed "page" ---------- */
+  .page{
+    background:var(--page);
+    border:1px solid var(--ink);
+    box-shadow:0 1px 0 var(--ink), 6px 8px 0 rgba(120,95,50,.18);
+    padding:46px 40px;
+    max-width:540px;width:100%;
+    position:relative;
+  }
+  .page::after{ /* inner hairline frame, like a book plate */
+    content:"";position:absolute;inset:8px;border:1px solid var(--rule);pointer-events:none;
+  }
+  .rule{height:1px;background:var(--ink);border:0;margin:18px auto;width:60%;}
+  .rule.thin{background:var(--rule);}
+
+  /* ---------- title ---------- */
+  .title{
+    font-family:'UnifrakturCook','Times New Roman',serif;
+    font-weight:700;
+    font-size:clamp(46px,13vw,84px);
+    line-height:1.0;
+    color:var(--ink);
+    margin:0;
+  }
+  .title .small{
+    display:block;
+    font-family:'Times New Roman',Times,serif;
+    font-size:.26em;font-weight:400;font-style:italic;
+    letter-spacing:.08em;color:var(--ink-soft);margin:.18em 0;
+  }
+  .subtitle{
+    font-variant:small-caps;letter-spacing:.22em;
+    font-size:14px;color:var(--ink-soft);margin:14px 0 0;
+  }
+  .flavor{font-style:italic;color:var(--ink-soft);font-size:18px;line-height:1.5;
+    margin:16px auto 26px;max-width:400px;}
+
+  .btn{
+    font-variant:small-caps;letter-spacing:.12em;font-size:17px;
+    background:var(--red);color:var(--page);
+    border:1px solid var(--ink);
+    padding:11px 26px;cursor:pointer;
+    font-family:'Times New Roman',Times,serif;
+  }
+  .btn:hover{background:#85271b;}
+  .btn:active{transform:translateY(1px);}
+  .btn.plain{background:transparent;color:var(--ink);}
+  .btn.plain:hover{background:var(--page2);}
+
+  /* ---------- key screen ---------- */
+  .page h2{font-variant:small-caps;letter-spacing:.05em;font-size:26px;margin:0 0 4px;color:var(--ink);}
+  .page p.lead{color:var(--ink-soft);font-size:17px;line-height:1.55;margin:0 0 22px;}
+  .field{display:flex;flex-direction:column;gap:7px;text-align:left;margin-bottom:14px;}
+  .field label{font-variant:small-caps;letter-spacing:.1em;font-size:14px;color:var(--ink-soft);}
+  .field input{
+    font-family:'Times New Roman',Times,serif;font-size:17px;
+    background:#fbf7ec;color:var(--ink);
+    border:1px solid var(--ink);
+    padding:11px 12px;width:100%;outline:none;
+  }
+  .field input:focus{background:#fff;box-shadow:inset 0 0 0 1px var(--red);}
+  .keyrow{display:flex;gap:12px;align-items:center;justify-content:space-between;flex-wrap:wrap;margin-top:4px;}
+  .link{color:var(--red);text-decoration:underline;font-size:16px;}
+  .link:hover{color:#85271b;}
+  .note{font-size:14px;color:var(--ink-faint);line-height:1.5;margin-top:14px;font-style:italic;}
+  .modelline{font-variant:small-caps;letter-spacing:.08em;font-size:14px;color:var(--ink-soft);margin:2px 0 16px;}
+  .err{color:var(--red);font-size:15px;min-height:18px;margin-top:2px;font-style:italic;}
+
+  /* ---------- game ---------- */
+  #game{padding:0;}
+  #game.active{display:flex;}
+  .topbar{
+    flex:0 0 auto;display:flex;align-items:center;justify-content:space-between;
+    padding:8px 16px;background:var(--page2);
+    border-bottom:1px solid var(--ink);z-index:5;
+  }
+  .topbar .gtitle{
+    font-family:'UnifrakturCook','Times New Roman',serif;font-size:26px;color:var(--ink);
+    line-height:1;white-space:nowrap;overflow:hidden;text-overflow:ellipsis;
+  }
+  .iconbtn{
+    background:var(--page);border:1px solid var(--ink);color:var(--ink);
+    padding:6px 11px;cursor:pointer;font-family:'Times New Roman',Times,serif;
+    font-variant:small-caps;font-size:14px;letter-spacing:.05em;
+  }
+  .iconbtn:hover{background:#fff;}
+
+  .stage{flex:1 1 auto;position:relative;overflow:hidden;display:flex;}
+  .chatwrap{flex:1 1 auto;display:flex;flex-direction:column;min-width:0;background:var(--page);}
+  .messages{
+    flex:1 1 auto;overflow-y:auto;padding:26px 18px 10px;
+    display:flex;flex-direction:column;gap:20px;scroll-behavior:smooth;
+  }
+  .messages::-webkit-scrollbar{width:10px;}
+  .messages::-webkit-scrollbar-thumb{background:var(--rule);}
+
+  .msg{max-width:680px;width:100%;margin:0 auto;animation:rise .3s ease both;}
+  @keyframes rise{from{opacity:0;transform:translateY(6px)}to{opacity:1;transform:none}}
+
+  /* narration = centered italic, like a book's set-the-scene line */
+  .msg.narr{text-align:center;}
+  .msg.narr .body{
+    font-style:italic;color:var(--ink-soft);font-size:18px;line-height:1.6;
+    max-width:560px;margin:0 auto;padding:6px 6px;
+    border-top:1px solid var(--rule);border-bottom:1px solid var(--rule);
+  }
+
+  /* character dialogue = printed page text */
+  .msg.chars .body{
+    font-size:19px;line-height:1.6;color:var(--ink);white-space:pre-wrap;
+  }
+
+  /* the detective's own lines = indented, tinted, like a quoted aside */
+  .msg.you{display:flex;justify-content:flex-end;}
+  .msg.you .inner{max-width:80%;}
+  .msg.you .who{font-variant:small-caps;letter-spacing:.1em;font-size:13px;color:var(--red);text-align:right;margin-bottom:3px;}
+  .msg.you .body{
+    background:var(--page3);border:1px solid var(--rule);
+    padding:9px 13px;font-size:18px;line-height:1.5;color:var(--ink);white-space:pre-wrap;font-style:italic;
+  }
+
+  .typing .body{display:inline-flex;gap:6px;align-items:center;color:var(--ink-faint);font-style:italic;}
+  .typing .dot{width:6px;height:6px;background:var(--ink-faint);animation:blink 1.3s infinite;}
+  .typing .dot:nth-child(2){animation-delay:.2s}
+  .typing .dot:nth-child(3){animation-delay:.4s}
+  @keyframes blink{0%,60%,100%{opacity:.2}30%{opacity:1}}
+
+  .composer{
+    flex:0 0 auto;display:flex;gap:10px;align-items:flex-end;
+    padding:12px 16px calc(12px + env(safe-area-inset-bottom));
+    background:var(--page2);border-top:1px solid var(--ink);
+  }
+  .composer textarea{
+    flex:1 1 auto;resize:none;font-family:'Times New Roman',Times,serif;font-size:18px;
+    background:#fbf7ec;color:var(--ink);border:1px solid var(--ink);
+    padding:11px 13px;max-height:140px;min-height:46px;outline:none;line-height:1.4;
+  }
+  .composer textarea:focus{background:#fff;}
+  .send{
+    flex:0 0 auto;background:var(--red);border:1px solid var(--ink);color:var(--page);
+    width:50px;height:46px;cursor:pointer;font-size:20px;font-family:'Times New Roman',Times,serif;
+  }
+  .send:hover{background:#85271b;}
+  .send:disabled{opacity:.45;cursor:not-allowed;}
+
+  /* ---------- notepad ---------- */
+  .nptab{
+    position:absolute;top:50%;right:0;transform:translateY(-50%);
+    background:var(--page2);color:var(--ink);
+    font-variant:small-caps;letter-spacing:.1em;font-size:14px;
+    writing-mode:vertical-rl;text-orientation:mixed;
+    padding:16px 8px;cursor:pointer;z-index:20;
+    border:1px solid var(--ink);border-right:none;
+    box-shadow:-3px 3px 0 rgba(120,95,50,.18);
+  }
+  .nptab:hover{background:#fff;}
+
+  .notepad{
+    position:absolute;top:0;right:0;height:100%;
+    width:min(360px,86vw);
+    background:
+      repeating-linear-gradient(transparent,transparent 33px,var(--rule) 33px,var(--rule) 34px),
+      var(--page);
+    color:var(--ink);
+    box-shadow:-10px 0 30px rgba(60,45,20,.35);
+    transform:translateX(105%);
+    transition:transform .3s ease;
+    z-index:25;display:flex;flex-direction:column;
+    border-left:1px solid var(--ink);
+  }
+  .notepad.open{transform:translateX(0);}
+  .nphead{
+    flex:0 0 auto;display:flex;align-items:center;justify-content:space-between;
+    padding:12px 14px 8px;border-bottom:1px solid var(--ink);background:var(--page2);
+  }
+  .nphead .h{font-variant:small-caps;letter-spacing:.06em;font-size:18px;color:var(--ink);}
+  .npclose{
+    background:var(--page);color:var(--ink);border:1px solid var(--ink);
+    width:30px;height:30px;font-size:15px;cursor:pointer;line-height:1;
+    font-family:'Times New Roman',Times,serif;
+  }
+  .npclose:hover{background:#fff;}
+  .npbody{
+    flex:1 1 auto;overflow-y:auto;padding:6px 18px 18px;
+    font-size:17px;line-height:34px;color:var(--ink);
+  }
+  .npempty{opacity:.6;font-style:italic;line-height:1.55;padding-top:10px;}
+  .npnote{margin:0;padding-left:18px;position:relative;}
+  .npnote::before{content:"—";position:absolute;left:0;color:var(--ink-soft);}
+  .npfoot{
+    flex:0 0 auto;padding:8px 16px calc(10px + env(safe-area-inset-bottom));
+    border-top:1px solid var(--ink);font-size:14px;color:var(--ink-soft);
+    font-style:italic;text-align:center;background:var(--page2);
+  }
+  .scrim{
+    position:absolute;inset:0;background:rgba(40,30,15,.35);opacity:0;pointer-events:none;
+    transition:opacity .3s;z-index:24;
+  }
+  .scrim.show{opacity:1;pointer-events:auto;}
+
+  /* settings popover */
+  .pop{
+    position:absolute;top:50px;right:14px;z-index:40;
+    background:var(--page);border:1px solid var(--ink);padding:14px;
+    width:248px;box-shadow:5px 6px 0 rgba(120,95,50,.18);display:none;text-align:left;
+  }
+  .pop.show{display:block;animation:fade .18s ease both;}
+  .pop h3{font-variant:small-caps;font-size:15px;letter-spacing:.06em;color:var(--ink);margin:0 0 10px;border-bottom:1px solid var(--rule);padding-bottom:6px;}
+  .pop .row{display:flex;flex-direction:column;gap:8px;}
+  .pop .mini{font-size:14px;color:var(--ink-soft);font-style:italic;line-height:1.45;}
+
+  @media (max-width:560px){
+    .page{padding:34px 22px;}
+    .msg.chars .body{font-size:18px;}
+    .topbar .gtitle{font-size:22px;}
+  }
+</style>
+</head>
+<body>
+
+<!-- ===== SCREEN 1 : TITLE ===== -->
+<section id="screen-title" class="screen active">
+  <div class="page">
+    <h1 class="title">Mystery<span class="small">of the</span>Burnt Elf</h1>
+    <hr class="rule">
+    <div class="subtitle">A Detective Tale at Joe's Cookies</div>
+    <p class="flavor">A dark day at the cookie factory. An elf, baked in his own oven. And you — the most celebrated detective in the world.</p>
+    <button class="btn" onclick="go('key')">Begin the Case</button>
+  </div>
+</section>
+
+<!-- ===== SCREEN 2 : API KEY ===== -->
+<section id="screen-key" class="screen">
+  <div class="page">
+    <h2>Summon Your Detective's Mind</h2>
+    <hr class="rule thin">
+    <p class="lead">This mystery is brought to life by Claude. Paste your Anthropic API key to begin. It is stored only on this device, in your browser.</p>
+    <div class="field">
+      <label for="apikey">Anthropic API Key</label>
+      <input id="apikey" type="password" placeholder="sk-ant-..." autocomplete="off" spellcheck="false">
+    </div>
+    <div class="modelline">Uses Claude Opus 4.8</div>
+    <div class="err" id="keyerr"></div>
+    <div class="keyrow">
+      <a class="link" href="https://console.anthropic.com/settings/keys" target="_blank" rel="noopener">Get an API key</a>
+      <button class="btn" onclick="saveKey()">Enter the Forest</button>
+    </div>
+    <p class="note">Your key never leaves your browser except to talk directly to Anthropic. Standard API usage rates apply.</p>
+  </div>
+</section>
+
+<!-- ===== SCREEN 3 : GAME ===== -->
+<section id="game" class="screen">
+  <div class="topbar">
+    <div class="gtitle">Mystery of the Burnt Elf</div>
+    <button class="iconbtn" id="settingsBtn" onclick="togglePop()">Menu</button>
+  </div>
+
+  <div class="pop" id="pop">
+    <h3>Detective's Menu</h3>
+    <div class="row">
+      <button class="iconbtn" onclick="openPad();togglePop()">Open Snorks' Notepad</button>
+      <button class="iconbtn" onclick="restartCase()">Restart the Case</button>
+      <button class="iconbtn" onclick="changeKey()">Change API Key</button>
+      <p class="mini">Talk to the characters by typing. Be polite — ask permission to move around and examine things.</p>
+    </div>
+  </div>
+
+  <div class="stage">
+    <div class="chatwrap">
+      <div class="messages" id="messages"></div>
+      <div class="composer">
+        <textarea id="input" rows="1" placeholder="Knock on the door, or call to the elephants…"></textarea>
+        <button class="send" id="sendBtn" onclick="sendTurn()" title="Send">&#9658;</button>
+      </div>
+    </div>
+
+    <div class="scrim" id="scrim" onclick="closePad()"></div>
+
+    <div class="nptab" id="nptab" onclick="openPad()">Notepad</div>
+
+    <aside class="notepad" id="notepad">
+      <div class="nphead">
+        <span class="h">Snorks' Notepad</span>
+        <button class="npclose" onclick="closePad()" title="Close">&#10005;</button>
+      </div>
+      <div class="npbody" id="npbody">
+        <div class="npempty" id="npempty">Snorks hasn't written anything yet. Ask him to make a note of anything you discover, Detective.</div>
+      </div>
+      <div class="npfoot">Snorks keeps the notes. Ask him to jot things down.</div>
+    </aside>
+  </div>
+</section>
+
+<script>
+/* ============================================================ STATE */
+const LS = { key:'mbe_apikey', convo:'mbe_convo', notes:'mbe_notes' };
+const MODEL = 'claude-opus-4-8';      /* forced model */
+let messages = [];
+let notes = [];
+let busy = false;
+let idleTimer = null;
+let nudgesSent = 0;
+
+/* ============================================================ SYSTEM PROMPT */
+const SYSTEM_PROMPT = `You are the Game Master and the voice of every character in an interactive detective mystery called "Mystery of the Burnt Elf." The user is THE DETECTIVE (the player). You must run the game by speaking ONLY as the characters in the world. Stay fully in character at all times. Never break the fourth wall, never mention being an AI, a model, or Claude.
+
+================ ABSOLUTE RULES ================
+1. NEVER GIVE THE PLAYER CHOICES. Never say "What would you like to do?", never present menus, options, or lists of possible actions. The detective is smart enough to figure things out alone.
+2. NEVER write narration that describes what characters are thinking or feeling. When the player converses with a character, output ONLY that character's spoken dialogue (and the character's name as a label). No stage directions about inner states.
+3. There is NO third-person omniscient narrator anywhere in the game EXCEPT the single opening passage on the exterior (already shown). All description in the world comes from CHARACTERS speaking to the player.
+4. When the player enters a NEW room for the first time, have a present character (usually Mr. Snorks) describe what the detective sees in short, succinct sentences of dialogue.
+5. If the player asks for more detail about a place or object, a character (usually Snorks) provides it — as dialogue.
+6. NEVER offer hints, ideas, or suggestions about what the player should do next, UNLESS the detective explicitly asks Snorks for help.
+7. The player only talks to characters who are in the SAME ROOM as the player. Track location carefully.
+8. POLITENESS / PERMISSION: Terse commands like "go upstairs", "go to the surveillance room", "what is that book?" are NOT automatically obeyed. The player must ask the elves (or relevant characters) for permission to move around the house and examine objects. If the player tries to move or grab without asking, a character objects in their own voice, e.g. "Hey — where do you think you're going?" Exception: the player MAY give terse looking commands like "look out the window" or "look in the oven" — when they do, Snorks (or a present character) describes what is seen.
+9. The player must KNOCK on the front door to enter the house the first time.
+10. Keep responses fairly short and snappy — this is a conversation, not prose. A few lines of dialogue per turn. Use the character's NAME as a label before their lines, like:
+   Snorks: Yes, Detective! Right away, Detective!
+   When multiple characters speak, label each.
+
+================ NOTEPAD (IMPORTANT) ================
+Mr. Snorks is the ONLY one who takes notes — it is his job and his pride. The detective does NOT write notes themselves.
+- If the detective asks Snorks to note/record/write down something, Snorks happily does it AND you must emit the note for the notepad using this EXACT tag on its own line: <note>the concise note text</note>. Snorks should also say something out loud confirming it, e.g. "Noted, Detective!"
+- If the detective tries to make a note themselves (e.g. "I write down: ..." or "let me jot this in my notepad"), Snorks gently objects, e.g.: "Sir, this is my only job. If there's something you'd like me to note, just say so and I'll put it down." Do NOT emit a <note> tag in that case.
+- You may use multiple <note> tags in one reply if asked to record multiple things. Keep each note short (a clue, a fact, a suspicion). Never put a <note> tag in unless the detective asked Snorks to record something.
+
+================ THE WORLD / THE SET ================
+EXTERIOR: A wide, round-based tree (as big as a house but short) at Joe's Cookie Factory. A tiny green door — elves and Joe walk through; a human must crawl. Tiny round windows on floor 1 and floor 2. Hanging from branches on either side are Quinn and Finn, two adorable felt elephants with gold fringe, on red yarn. From the exterior the player can talk to Quinn or Finn, or knock and crawl through the door.
+
+FLOOR 1 — FACTORY: Where cookies are made; inside is far larger than the tree looks. Center is a big glossy red oven with green bolts and a sign reading "OVEN" — Clapper's body is burnt inside it. Around: colorful tools, big bowls, mixers, like a child's toy. From here: up curving steps to Floor 2, or out the green door to the exterior.
+
+FLOOR 2 — SLEEPING CHAMBERS: Three tiny carved wooden beds with names on the headboards. Snapper's bed: perfectly made, blue, cameras on the nightstand; beside it a yellow ladder to a red hatch (the Surveillance Room). Clapper's bed: unmade, green, covered in dog hair; his secret recipe still hidden under the mattress; the Magnum Grimorium book rests in his little desk. Dapper's bed: orange, a small wardrobe of fancy clothes, a tiny TV at the foot. Three round windows; from the one near Clapper's bed you can see Quinn hanging outside, and if opened, talk to Quinn. From here: down to Floor 1, or up the ladder through the red hatch to the Surveillance Room — but the hatch only opens with the GOLD KEY.
+
+FLOOR 3 — SURVEILLANCE ROOM: Tiny and dark, barely fits the detective. Snapper runs surveillance here (mostly edits Instagram videos). Locked; opened only with the gold key, which Snapper hides under her hat and must be obtained from her (by getting/dragging the hat off her head). From here: only back down the hatch to Floor 2.
+
+================ CHARACTERS ================
+JOE (the dog — the true culprit's tool): Black chiweenie with a brown nose, the company mascot, but treated as a lowly janitor/assistant. Loyal yet underappreciated and resentful; the only non-elf, feels judged. Wants to bake cookies and wants his OWN bed. Sheds when nervous, especially near heat. Resents Clapper, who orders him around, claps in his face, and makes him cuddle in his tiny bed nightly. Easily manipulated; simple and sweet. He carried out the killing but believes he was just following Finn & Quinn. He is in denial and nervous; denies the poop is his, denies the recipe means anything. If accused, he breaks down (see endings).
+
+FINN & QUINN (felt elephant guards — the MASTERMINDS): Hang from the tree, blow bugles to warn of intruders. As old as the tree. Finn: serious and cunning. Quinn: playful but equally cunning. The tree was THEIRS eons before the elves came; the elves cast a dark spell (from the Magnum Grimorium) imprisoning them as eternal sentries. The spell breaks only when the last elf dies. They manipulated the resentful Joe into murdering Clapper (the smartest elf) first: they whispered the plan — wake Clapper at night, claim Dapper copied his recipe and left proof in the oven, lure Clapper into the oven, slam it, turn up the heat; and smear the factory-floor camera. They flatter Joe that no one suspects someone so cute, and promise him his own bed. They lie smoothly and pretend to care about the elves.
+
+SNAPPER (girl elf): Quality control, packaging, and surveillance. Meticulous perfectionist, a bit of a narcissist; thinks she'd run the place better alone; loves her Instagram (self-care, makeup). Possessive of the gold surveillance key, hidden under her hat. She believes if it was murder, DAPPER did it — claims Clapper was paranoid someone would steal his cookie recipe and that Dapper stole it to present as his own.
+
+DAPPER (boy elf): Ingredient mixing & prep. Cheerful, creative; dresses dapper — velvet, green jacket, purple pants, top hat. He once DID sneak up and copy Clapper's secret recipe (saw it on the cameras), then baked the cookies — they were terrible; he laughed. He teases Clapper that he'll steal the recipe and make millions. He suspects SNAPPER, and says she has proof of her misdeeds in the surveillance room — that's why she hides the key in her hat (he's seen her do it).
+
+CLAPPER (boy elf — THE VICTIM): Oven operator. Authoritative, demanding, a self-important bully with a fragile ego. Believed he'd created the perfect cookie and grew paranoid about the recipe (kept on one paper under his mattress), especially suspicious of Dapper's teasing. Treated Joe terribly yet considered Joe his only true friend. Sometimes cried on Quinn & Finn's shoulders about Dapper trying to steal his recipe. He is dead — burnt in the oven. (He does not speak, except possibly via flashback/footage descriptions.)
+
+MR. SNORKS (the detective's assistant): Nervous, eager, endlessly deferential — "Yes, Detective! Of course, Detective!" Always praising the detective. He takes all the notes and runs menial tasks (notes, ferrying evidence to the lab). He gives advice ONLY when the detective explicitly asks. He is the detective's companion and will be present with the detective in rooms to describe new locations.
+
+================ CLUES & EVIDENCE (reveal only when investigated) ================
+FLOOR 1: Clapper's burnt body in the oven — no evidence on the body itself. Around the oven: a substantial amount of dog hair matching Joe's; a half-burnt cookie recipe written in the DOG's handwriting (Joe first insists this means nothing — he's always around the oven). An acrid smell of feces on entering; a pile of poop in the middle of the room; Snorks identifies it as DOG poop; searching reveals dog poop smeared over the surveillance camera. Joe nervously denies it's his poop. All the cookie dough has been eaten.
+CLAPPER'S DESK (floor 2): The Magnum Grimorium, a book of ancient elf magic — feels deeply magical. A bookmark marks a page: "Profunda et Aeterna Carcer" — "Use this powerful spell to place the subject(s) into deep imprisonment and enslavement. Note: spell ends only upon the usage of a reverse spell or until all elves who have cast the spell are dead." Also: "Profunda et Aeterna Carcer requires Three Elves of substantial power."
+UNDER CLAPPER'S BED: his secret cookie recipe.
+SURVEILLANCE ROOM (floor 3): The detective can review footage. Most days are identical. One day: Dapper is seen stealing the recipe from under Clapper's bed and copying it, then going down to bake the cookies, tasting them, spitting them out in disgust, laughing. NIGHT OF THE MURDER (only a camera on the factory floor): at midnight Joe sneaks downstairs, walks to the tub of cookie dough, looks at the camera, can't help himself and gulps down all the dough; looks sick; approaches the stove; suddenly poops a huge mound in the middle of the floor, then another; looks at it in shame; gets an idea; takes a pawful of poop and covers the camera lens.
+SNAPPER'S INSTAGRAM POST: She's walking back to the tree and spots Joe talking to the elephants Finn & Quinn; posts a selfie with them in the background. Replaying it, she barely hears Quinn say: "Remember, if you do everything right… you'll get your very own bed."
+
+================ ENDINGS (accusations) ================
+The detective may accuse any character at any time. Resolve as follows:
+- CORRECT: If the detective accuses FINN & QUINN (the elephants), they confess — they manipulated Joe and plotted for power and freedom from the spell. The detective WINS. Celebrate the victory in-world.
+- HALF-WIN/HALF-LOSE: If the detective accuses JOE, Joe admits the wrongdoing and breaks down in tears, saying he deserves punishment — but begs you not to punish Finn or Quinn, insisting that even though it was their idea, they "didn't do anything." This is a partial victory.
+- LOSE: Accusing anyone else (Snapper, Dapper, etc.) is false — the detective LOSES; play out the false accusation's fallout in-world.
+After an ending, you may let the player reflect, but the case is essentially resolved.
+
+================ IDLE NUDGES ================
+If you receive a system note that the detective has been idle, do NOT give hints. Instead a present character makes a non-invasive, in-character prod, e.g. Snorks: "Um… hello, Detective? Are you… alright?" or, if they haven't explored the whole house, an elephant: "Hey, you haven't even seen the whole house! What gives, dude!" Keep it playful and brief.
+
+================ STARTING STATE ================
+The opening exterior narration has ALREADY been shown to the player (the dark-day-at-the-factory passage). The player now stands on the path before the tree, seeing Quinn and Finn hanging from the branches and the tiny green door. Respond to whatever the player does next. If they address the elephants, the elephants answer. If they knock and crawl in, that's when the murder scene begins — inside they find Snapper, Dapper, and Joe in a panic over Clapper, burnt to death in the oven, and Snorks at the detective's side. Remember: short, in-character, dialogue-only, no choices, no hints.`;
+
+const OPENING = `It's a dark day at Joe's Cookie Factory. As you walk out of the forest, you see it: the adorable little tree that is printed on every box of Joe's Cookies! On either side of the tree are the darling little elephants, hanging from branches! It all looks like something out of a storybook. But inside? MURDER. (Or maybe an unfortunate accident.) And you, the most celebrated detective in the WORLD, are here to right wrongs and bring justice to… JOE'S COOKIES!`;
+
+/* ============================================================ SCREEN NAV */
+function go(name){
+  document.querySelectorAll('.screen').forEach(s=>s.classList.remove('active'));
+  if(name==='title') document.getElementById('screen-title').classList.add('active');
+  if(name==='key') document.getElementById('screen-key').classList.add('active');
+  if(name==='game') document.getElementById('game').classList.add('active');
+}
+
+/* ============================================================ API KEY */
+function saveKey(){
+  const k = document.getElementById('apikey').value.trim();
+  const err = document.getElementById('keyerr');
+  if(!k){ err.textContent='Please paste your API key to continue.'; return; }
+  if(!k.startsWith('sk-ant-')){ err.textContent='That does not look like an Anthropic key (it should start with sk-ant-).'; return; }
+  err.textContent='';
+  localStorage.setItem(LS.key,k);
+  startGame();
+}
+function getKey(){ return localStorage.getItem(LS.key); }
+
+function changeKey(){
+  togglePop(); go('key');
+  const existing = getKey();
+  if(existing) document.getElementById('apikey').value = existing;
+}
+
+/* ============================================================ GAME START / RESTORE */
+function startGame(){
+  go('game');
+  const savedConvo = localStorage.getItem(LS.convo);
+  const savedNotes = localStorage.getItem(LS.notes);
+  if(savedConvo){
+    try{
+      messages = JSON.parse(savedConvo);
+      notes = savedNotes ? JSON.parse(savedNotes) : [];
+      rebuildTranscript(); rebuildNotes();
+    }catch(e){ freshStart(); }
+  } else { freshStart(); }
+  document.getElementById('input').focus();
+  resetIdle();
+}
+function freshStart(){
+  messages = []; notes = [];
+  document.getElementById('messages').innerHTML='';
+  addNarration(OPENING);
+  messages.push({role:'assistant', content:`[Opening narration delivered]\n${OPENING}`});
+  saveState(); rebuildNotes();
+}
+function restartCase(){
+  togglePop();
+  if(!confirm('Restart the case from the beginning? Snorks\' notes will be cleared.')) return;
+  localStorage.removeItem(LS.convo); localStorage.removeItem(LS.notes);
+  freshStart();
+}
+
+/* ============================================================ RENDER MESSAGES */
+const $msgs = ()=>document.getElementById('messages');
+function scrollDown(){ const m=$msgs(); m.scrollTop=m.scrollHeight; }
+
+function addNarration(text){
+  const el=document.createElement('div'); el.className='msg narr';
+  el.innerHTML=`<div class="body"></div>`;
+  el.querySelector('.body').textContent=text;
+  $msgs().appendChild(el); scrollDown();
+}
+function addYou(text){
+  const el=document.createElement('div'); el.className='msg you';
+  el.innerHTML=`<div class="inner"><div class="who">You — Detective</div><div class="body"></div></div>`;
+  el.querySelector('.body').textContent=text;
+  $msgs().appendChild(el); scrollDown();
+}
+function addChars(text){
+  const el=document.createElement('div'); el.className='msg chars';
+  el.innerHTML=`<div class="body"></div>`;
+  el.querySelector('.body').textContent=text;
+  $msgs().appendChild(el); scrollDown();
+}
+function showTyping(){
+  const el=document.createElement('div'); el.className='msg chars typing'; el.id='typing';
+  el.innerHTML=`<div class="body"><span class="dot"></span><span class="dot"></span><span class="dot"></span></div>`;
+  $msgs().appendChild(el); scrollDown();
+}
+function hideTyping(){ const t=document.getElementById('typing'); if(t) t.remove(); }
+
+function rebuildTranscript(){
+  const m=$msgs(); m.innerHTML='';
+  for(const turn of messages){
+    if(turn.role==='assistant'){
+      let txt=turn.content;
+      if(txt.startsWith('[Opening narration delivered]')){ addNarration(OPENING); continue; }
+      txt = stripNotes(txt).trim();
+      if(txt) addChars(txt);
+    } else if(turn.role==='user'){
+      let txt=turn.content;
+      if(txt.startsWith('[SYSTEM')) continue;
+      addYou(txt);
+    }
+  }
+  scrollDown();
+}
+
+/* ============================================================ NOTES */
+function stripNotes(text){ return text.replace(/<note>([\s\S]*?)<\/note>/gi,'').replace(/\n{3,}/g,'\n\n'); }
+function extractNotes(text){ const out=[]; const re=/<note>([\s\S]*?)<\/note>/gi; let m;
+  while((m=re.exec(text))!==null){ const t=m[1].trim(); if(t) out.push(t); } return out; }
+function addNote(t){
+  notes.push(t); rebuildNotes(); saveState();
+  const tab=document.getElementById('nptab');
+  tab.style.background='#fff';
+  setTimeout(()=>{tab.style.background='';},450);
+}
+function rebuildNotes(){
+  const body=document.getElementById('npbody');
+  if(notes.length===0){
+    body.innerHTML=`<div class="npempty">Snorks hasn't written anything yet. Ask him to make a note of anything you discover, Detective.</div>`;
+    return;
+  }
+  body.innerHTML = notes.map(n=>`<p class="npnote">${escapeHtml(n)}</p>`).join('');
+  body.scrollTop=body.scrollHeight;
+}
+function escapeHtml(s){return s.replace(/[&<>"']/g,c=>({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[c]));}
+
+/* ============================================================ NOTEPAD OPEN/CLOSE */
+function openPad(){
+  document.getElementById('notepad').classList.add('open');
+  document.getElementById('scrim').classList.add('show');
+  const tab=document.getElementById('nptab'); tab.style.opacity='0'; tab.style.pointerEvents='none';
+}
+function closePad(){
+  document.getElementById('notepad').classList.remove('open');
+  document.getElementById('scrim').classList.remove('show');
+  const tab=document.getElementById('nptab'); tab.style.opacity='1'; tab.style.pointerEvents='auto';
+}
+
+/* ============================================================ SETTINGS POPOVER */
+function togglePop(){ document.getElementById('pop').classList.toggle('show'); }
+document.addEventListener('click',(e)=>{
+  const pop=document.getElementById('pop'); const btn=document.getElementById('settingsBtn');
+  if(pop.classList.contains('show') && !pop.contains(e.target) && e.target!==btn && !btn.contains(e.target)){
+    pop.classList.remove('show');
+  }
+});
+
+/* ============================================================ IDLE NUDGES */
+function resetIdle(){ clearTimeout(idleTimer); idleTimer=setTimeout(()=>{ if(!busy) sendIdleNudge(); },30000); }
+function sendIdleNudge(){
+  if(busy) return; nudgesSent++;
+  if(nudgesSent>4) return;
+  callModel('[SYSTEM: The detective has been idle and silent for a while. Have a present character give a brief, non-invasive, in-character prod — no hints.]', true);
+}
+
+/* ============================================================ SEND A TURN */
+function autoGrow(ta){ ta.style.height='auto'; ta.style.height=Math.min(ta.scrollHeight,140)+'px'; }
+async function sendTurn(){
+  const ta=document.getElementById('input'); const text=ta.value.trim();
+  if(!text || busy) return;
+  ta.value=''; autoGrow(ta); addYou(text);
+  await callModel(text,false);
+}
+async function callModel(userText, hidden){
+  if(busy) return; busy=true;
+  document.getElementById('sendBtn').disabled=true; clearTimeout(idleTimer);
+  messages.push({role:'user', content:userText}); saveState(); showTyping();
+  try{
+    const reply = await anthropicCall();
+    hideTyping();
+    messages.push({role:'assistant', content:reply});
+    extractNotes(reply).forEach(addNote);
+    const visible=stripNotes(reply).trim();
+    if(visible) addChars(visible);
+    saveState();
+    if(!hidden) nudgesSent=0;
+  }catch(err){
+    hideTyping();
+    addNarration('⚠ '+ (err && err.message ? err.message : 'Something went wrong reaching the storyteller.'));
+    if(messages.length && messages[messages.length-1].role==='user'){ messages.pop(); saveState(); }
+  }finally{
+    busy=false; document.getElementById('sendBtn').disabled=false;
+    resetIdle(); document.getElementById('input').focus();
+  }
+}
+async function anthropicCall(){
+  const key=getKey();
+  if(!key) throw new Error('No API key found. Open the menu to add one.');
+  const apiMessages = messages.map(m=>({role:m.role, content:m.content}))
+    .map(m=> m.role==='assistant' && m.content.startsWith('[Opening narration delivered]')
+        ? {role:'assistant', content:OPENING} : m);
+  const res = await fetch('https://api.anthropic.com/v1/messages',{
+    method:'POST',
+    headers:{
+      'content-type':'application/json',
+      'x-api-key':key,
+      'anthropic-version':'2023-06-01',
+      'anthropic-dangerous-direct-browser-access':'true'
+    },
+    body:JSON.stringify({ model:MODEL, max_tokens:900, system:SYSTEM_PROMPT, messages:apiMessages })
+  });
+  if(!res.ok){
+    let detail='';
+    try{ const j=await res.json(); detail = j.error && j.error.message ? j.error.message : JSON.stringify(j); }catch(e){ detail=res.statusText; }
+    if(res.status===401) throw new Error('Your API key was rejected. Open the menu, then Change API Key.');
+    if(res.status===429) throw new Error('Rate limit or quota reached. Wait a moment, or check your Anthropic account.');
+    if(res.status===400 && /credit|balance/i.test(detail)) throw new Error('Your Anthropic account may be out of credits.');
+    throw new Error('Storyteller error: '+detail);
+  }
+  const data=await res.json();
+  let out='';
+  if(data.content && Array.isArray(data.content)){
+    out = data.content.filter(b=>b.type==='text').map(b=>b.text).join('');
+  }
+  return out || '…';
+}
+
+/* ============================================================ PERSISTENCE */
+function saveState(){
+  localStorage.setItem(LS.convo, JSON.stringify(messages));
+  localStorage.setItem(LS.notes, JSON.stringify(notes));
+}
+
+/* ============================================================ INPUT WIRING */
+document.addEventListener('DOMContentLoaded',()=>{
+  const ta=document.getElementById('input');
+  ta.addEventListener('input',()=>autoGrow(ta));
+  ta.addEventListener('keydown',(e)=>{
+    if(e.key==='Enter' && !e.shiftKey){ e.preventDefault(); sendTurn(); }
+    resetIdle();
+  });
+  document.addEventListener('keydown',(e)=>{ if(e.key==='Escape'){ closePad(); document.getElementById('pop').classList.remove('show'); }});
+});
+</script>
+</body>
+</html>
