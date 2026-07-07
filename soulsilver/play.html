@@ -1,0 +1,1606 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no, viewport-fit=cover">
+<meta name="theme-color" content="#12151c">
+<title>Pokémon SoulSilver — Phone Recreation</title>
+</head>
+<body>
+
+<style>
+/* Phone-first layout for the SoulSilver recreation.
+   Screen on top, touch controls (D-pad + A/B + MENU) filling the rest. */
+
+:root { --bg:#12151c; --panel:#1c2130; --btn:#2c3346; --btn2:#39415a; --accent:#e03030; }
+
+* { box-sizing:border-box; -webkit-tap-highlight-color:transparent; user-select:none; -webkit-user-select:none; }
+html, body { margin:0; height:100%; overflow:hidden; background:var(--bg);
+  font-family:-apple-system, "Segoe UI", Roboto, sans-serif; position:fixed; width:100%; touch-action:none; }
+
+#app { display:flex; flex-direction:column; height:100%; height:100dvh; align-items:center; }
+
+/* ---- screen ---- */
+#screen-wrap { width:100%; display:flex; justify-content:center; align-items:center;
+  padding:8px 8px 4px; flex:0 0 auto; }
+#game { width:100%; max-width:calc((100dvh - 220px) * 1.18);   /* 13:11 aspect */
+  image-rendering:pixelated; image-rendering:crisp-edges;
+  border:3px solid #000; border-radius:6px; background:#000;
+  box-shadow:0 6px 20px rgba(0,0,0,.5); }
+
+/* ---- controls ---- */
+#controls { flex:1 1 auto; width:100%; max-width:520px; display:flex; align-items:center;
+  justify-content:space-between; padding:6px 20px 22px; gap:12px; }
+
+.dpad { position:relative; width:150px; height:150px; flex:0 0 auto; }
+.dpad button { position:absolute; width:50px; height:50px; background:var(--btn);
+  border:none; color:#aeb6c8; font-size:20px; border-radius:8px; }
+.dpad button.held { background:var(--accent); color:#fff; }
+#btn-up    { top:0; left:50px; border-radius:8px 8px 0 0; }
+#btn-down  { bottom:0; left:50px; border-radius:0 0 8px 8px; }
+#btn-left  { top:50px; left:0; border-radius:8px 0 0 8px; }
+#btn-right { top:50px; right:0; border-radius:0 8px 8px 0; }
+.dpad .hub { position:absolute; top:50px; left:50px; width:50px; height:50px; background:var(--btn); }
+
+.actions { display:flex; flex-direction:column; align-items:center; gap:14px; flex:0 0 auto; }
+.ab { display:flex; gap:18px; align-items:center; }
+.ab button { width:66px; height:66px; border-radius:50%; border:none; font-size:22px; font-weight:700;
+  color:#fff; box-shadow:0 4px 0 rgba(0,0,0,.35); }
+#btn-a { background:#d84040; }
+#btn-b { background:#4a5068; }
+#btn-a.held, #btn-b.held { transform:translateY(3px); box-shadow:none; filter:brightness(1.2); }
+#btn-menu { padding:8px 18px; border:none; border-radius:14px; background:var(--btn2); color:#cfd6e6;
+  font-size:12px; letter-spacing:1px; }
+
+.hint { color:#69718a; font-size:11px; text-align:center; padding:0 0 6px; }
+
+@media (min-width:900px) { #game { max-width:640px; } }
+
+</style>
+<div id="app">
+  <div id="screen-wrap">
+    <canvas id="game" width="312" height="264"></canvas>
+  </div>
+  <div class="hint">Arrows/WASD move · Z or A = confirm · X or B = back/menu</div>
+  <div id="controls">
+    <div class="dpad">
+      <button id="btn-up" aria-label="up">▲</button>
+      <button id="btn-left" aria-label="left">◀</button>
+      <span class="hub"></span>
+      <button id="btn-right" aria-label="right">▶</button>
+      <button id="btn-down" aria-label="down">▼</button>
+    </div>
+    <div class="actions">
+      <button id="btn-menu">MENU</button>
+      <div class="ab">
+        <button id="btn-b" aria-label="B">B</button>
+        <button id="btn-a" aria-label="A">A</button>
+      </div>
+    </div>
+  </div>
+</div>
+<script>
+/* =============================================================================
+ * data.js  —  Static game data for the SoulSilver (Johto) recreation.
+ *
+ * Everything here is pure data: the Pokedex, move list, the Generation-IV type
+ * chart, and the tile maps for the early game (New Bark Town -> Elm's Lab ->
+ * Route 29 -> Cherrygrove City).
+ *
+ * Data is grounded in Bulbapedia / StrategyWiki (base stats, catch rates, Gen-IV
+ * move data) so the battle maths behave like the real games.  See README.md.
+ * =========================================================================== */
+
+var SS = window.SS || {};
+
+/* ------------------------------------------------------------------ types --- */
+// The 17 Generation-IV types (Fairy did not exist yet).
+SS.TYPES = ['normal','fire','water','electric','grass','ice','fighting','poison',
+            'ground','flying','psychic','bug','rock','ghost','dragon','dark','steel'];
+
+// Type chart: CHART[attacking][defending] = multiplier (0, 0.5, 1, 2).
+// Only non-1 entries are listed; everything else defaults to 1.
+SS.TYPE_CHART = {
+  normal:   {rock:.5, ghost:0, steel:.5},
+  fire:     {fire:.5, water:.5, grass:2, ice:2, bug:2, rock:.5, dragon:.5, steel:2},
+  water:    {fire:2, water:.5, grass:.5, ground:2, rock:2, dragon:.5},
+  electric: {water:2, electric:.5, grass:.5, ground:0, flying:2, dragon:.5},
+  grass:    {fire:.5, water:2, grass:.5, poison:.5, ground:2, flying:.5, bug:.5, rock:2, dragon:.5, steel:.5},
+  ice:      {fire:.5, water:.5, grass:2, ice:.5, ground:2, flying:2, dragon:2, steel:.5},
+  fighting: {normal:2, ice:2, poison:.5, flying:.5, psychic:.5, bug:.5, rock:2, ghost:0, dark:2, steel:2},
+  poison:   {grass:2, poison:.5, ground:.5, rock:.5, ghost:.5, steel:0},
+  ground:   {fire:2, electric:2, grass:.5, poison:2, flying:0, bug:.5, rock:2, steel:2},
+  flying:   {electric:.5, grass:2, fighting:2, bug:2, rock:.5, steel:.5},
+  psychic:  {fighting:2, poison:2, psychic:.5, dark:0, steel:.5},
+  bug:      {fire:.5, grass:2, fighting:.5, poison:.5, flying:.5, psychic:2, ghost:.5, dark:2, steel:.5},
+  rock:     {fire:2, ice:2, fighting:.5, ground:.5, flying:2, bug:2, steel:.5},
+  ghost:    {normal:0, psychic:2, ghost:2, dark:.5},
+  dragon:   {dragon:2, steel:.5},
+  dark:     {fighting:.5, psychic:2, ghost:2, dark:.5},
+  steel:    {fire:.5, water:.5, electric:.5, ice:2, rock:2, steel:.5}
+};
+
+/* ------------------------------------------------------------------ moves --- */
+// category: 'physical' | 'special' | 'status'
+// effect (optional): {stat, stages, target} for stat changes, or {status} to inflict.
+SS.MOVES = {
+  tackle:     {name:'Tackle',      type:'normal',  category:'physical', power:35, acc:95, pp:35},
+  scratch:    {name:'Scratch',     type:'normal',  category:'physical', power:40, acc:100, pp:35},
+  pound:      {name:'Pound',       type:'normal',  category:'physical', power:40, acc:100, pp:35},
+  quickattack:{name:'Quick Attack',type:'normal',  category:'physical', power:40, acc:100, pp:30, priority:1},
+  growl:      {name:'Growl',       type:'normal',  category:'status',   power:0,  acc:100, pp:40, effect:{stat:'atk', stages:-1, target:'foe'}},
+  tailwhip:   {name:'Tail Whip',   type:'normal',  category:'status',   power:0,  acc:100, pp:30, effect:{stat:'def', stages:-1, target:'foe'}},
+  leer:       {name:'Leer',        type:'normal',  category:'status',   power:0,  acc:100, pp:30, effect:{stat:'def', stages:-1, target:'foe'}},
+  ember:      {name:'Ember',       type:'fire',    category:'special',  power:40, acc:100, pp:25, effect:{status:'burn', chance:10}},
+  watergun:   {name:'Water Gun',   type:'water',   category:'special',  power:40, acc:100, pp:25},
+  vinewhip:   {name:'Vine Whip',   type:'grass',   category:'physical', power:35, acc:100, pp:15},
+  razorleaf:  {name:'Razor Leaf',  type:'grass',   category:'physical', power:55, acc:95,  pp:25, highCrit:true},
+  gust:       {name:'Gust',        type:'flying',  category:'special',  power:40, acc:100, pp:35},
+  peck:       {name:'Peck',        type:'flying',  category:'physical', power:35, acc:100, pp:35},
+  sandattack: {name:'Sand-Attack', type:'ground',  category:'status',   power:0,  acc:100, pp:15, effect:{stat:'acc', stages:-1, target:'foe'}},
+  stringshot: {name:'String Shot', type:'bug',     category:'status',   power:0,  acc:95,  pp:40, effect:{stat:'spe', stages:-1, target:'foe'}},
+  poisonsting:{name:'Poison Sting',type:'poison',  category:'physical', power:15, acc:100, pp:35, effect:{status:'poison', chance:30}},
+  bugbite:    {name:'Bug Bite',    type:'bug',     category:'physical', power:60, acc:100, pp:20},
+  bite:       {name:'Bite',        type:'dark',    category:'physical', power:60, acc:100, pp:25},
+  defensecurl:{name:'Defense Curl',type:'normal',  category:'status',   power:0,  acc:100, pp:40, effect:{stat:'def', stages:1, target:'self'}}
+};
+
+/* --------------------------------------------------------------- pokedex --- */
+// stats order everywhere: hp, atk, def, spa, spd, spe
+// growth: 'mediumFast' (n^3) or 'mediumSlow'. learnset: {level: moveId}.
+SS.DEX = {
+  chikorita: {id:152, name:'Chikorita', types:['grass'], base:[45,49,65,49,65,45],
+    catchRate:45, baseExp:64, growth:'mediumSlow',
+    learnset:{1:'tackle', 3:'growl', 6:'razorleaf'}},
+  cyndaquil: {id:155, name:'Cyndaquil', types:['fire'], base:[39,52,43,60,50,65],
+    catchRate:45, baseExp:65, growth:'mediumSlow',
+    learnset:{1:'tackle', 6:'leer', 10:'ember'}},
+  totodile:  {id:158, name:'Totodile', types:['water'], base:[50,65,64,44,48,43],
+    catchRate:45, baseExp:66, growth:'mediumSlow',
+    learnset:{1:'scratch', 6:'leer', 10:'watergun'}},
+
+  pidgey:    {id:16,  name:'Pidgey',   types:['normal','flying'], base:[40,45,40,35,35,56],
+    catchRate:255, baseExp:50, growth:'mediumSlow',
+    learnset:{1:'tackle', 5:'sandattack', 9:'gust', 13:'quickattack'}},
+  rattata:   {id:19,  name:'Rattata',  types:['normal'], base:[30,56,35,25,35,72],
+    catchRate:255, baseExp:51, growth:'mediumFast',
+    learnset:{1:'tackle', 1:'tailwhip', 7:'quickattack', 13:'bite'}},
+  sentret:   {id:161, name:'Sentret',  types:['normal'], base:[35,46,34,35,45,20],
+    catchRate:255, baseExp:57, growth:'mediumFast',
+    learnset:{1:'scratch', 1:'tailwhip', 6:'defensecurl', 12:'quickattack'}},
+  hoothoot:  {id:163, name:'Hoothoot', types:['normal','flying'], base:[60,30,30,36,56,50],
+    catchRate:255, baseExp:58, growth:'mediumFast',
+    learnset:{1:'tackle', 6:'growl', 11:'peck'}},
+  caterpie:  {id:10,  name:'Caterpie', types:['bug'], base:[45,30,35,20,20,45],
+    catchRate:255, baseExp:39, growth:'mediumFast',
+    learnset:{1:'tackle', 1:'stringshot'}},
+  weedle:    {id:13,  name:'Weedle',   types:['bug','poison'], base:[40,35,30,20,20,50],
+    catchRate:255, baseExp:39, growth:'mediumFast',
+    learnset:{1:'poisonsting', 1:'stringshot'}}
+};
+
+/* --------------------------------------------------------- encounter data --- */
+// Wild tables for tall-grass tiles, per map id. weight = relative chance.
+SS.ENCOUNTERS = {
+  route29: [
+    {species:'pidgey',  min:2, max:4, weight:30},
+    {species:'rattata', min:2, max:4, weight:30},
+    {species:'sentret', min:2, max:4, weight:25},
+    {species:'hoothoot',min:2, max:4, weight:10},
+    {species:'caterpie',min:2, max:3, weight:3},
+    {species:'weedle',  min:2, max:3, weight:2}
+  ]
+};
+
+/* ------------------------------------------------------------------- maps --- */
+// Tile legend:
+//   #  tree / wall (blocked)      .  path / short grass (walk)
+//   ~  tall grass (encounters)    W  water (blocked)
+//   H  house/lab wall (blocked)   D  door / warp (see warps)
+//   C  Poke-Center heal counter   F  flowers (blocked deco)
+//   -  ledge / fence (blocked)    space = interior floor (walk)
+//   s  sign (blocked, readable)
+//
+// Each map lists its grid (rows of equal length), warps, signs and any
+// heal tile.  Warp: {x,y,to,tx,ty}. Player enters `to` map at (tx,ty).
+SS.MAPS = {
+  newbark: {
+    name:'New Bark Town',
+    grid:[
+      '############',
+      '#....s.....#',
+      '#..HHH..HHH#',
+      '#..HDH..HDH#',
+      '#..........#',
+      '#....s.....#',
+      '#..........#',
+      '#.WW......F#',
+      '#.WW.....FF#',
+      '#..........#',
+      '#####..#####',
+      '     ..     '
+    ],
+    warps:[
+      {x:4, y:3, to:'playerhouse', tx:3, ty:4},   // left building = your house
+      {x:9, y:3, to:'elmlab', tx:4, ty:5},        // right building = Elm's Lab
+      {x:6, y:11, to:'route29', tx:17, ty:1},     // south exit -> east end of Route 29
+      {x:5, y:11, to:'route29', tx:17, ty:1}
+    ],
+    signs:{
+      '5,1':'NEW BARK TOWN — "The town where the winds of a new beginning blow."',
+      '5,5':"PROF. ELM'S POKEMON LAB"
+    }
+  },
+
+  playerhouse: {
+    name:'Your House',
+    grid:[
+      'HHHHHHHH',
+      'H  ss  H',
+      'H      H',
+      'H  ..  H',
+      'H  ..  H',
+      'HHHDHHHH'
+    ],
+    warps:[ {x:3, y:5, to:'newbark', tx:4, ty:4} ],
+    signs:{ '3,1':'A cozy room. Your Mom watches the news downstairs.',
+            '4,1':'A game console sits in the corner.' }
+  },
+
+  elmlab: {
+    name:"Elm's Lab",
+    grid:[
+      'HHHHHHHHH',
+      'H  sss  H',
+      'H       H',
+      'H  ppp  H',   // p = starter machine (handled specially)
+      'H       H',
+      'H       H',
+      'HHHHDHHHH'
+    ],
+    warps:[ {x:4, y:6, to:'newbark', tx:9, ty:4} ],
+    signs:{ '3,1':'Bookshelves crammed with research on Pokemon.' },
+    // Three Poke Balls on the table; stepping onto them (row 3) triggers choice.
+    starterTiles:{ '3,3':'chikorita', '4,3':'cyndaquil', '5,3':'totodile' }
+  },
+
+  route29: {
+    name:'Route 29',
+    grid:[
+      '####################',
+      '#........~~~~......D#',
+      '#..~~~...~~~~...~~..#',
+      '#..~~~.........~~..#',
+      '#......###.........#',
+      '#..~~..###..~~~~...#',
+      '#..~~.......~~~~..s#',
+      '#...........~~~~...#',
+      'D..................#',
+      '####################'
+    ],
+    warps:[
+      {x:19, y:1, to:'newbark', tx:6, ty:10},        // east -> back to New Bark
+      {x:0,  y:8, to:'cherrygrove', tx:10, ty:5}     // west -> Cherrygrove City
+    ],
+    signs:{ '18,6':'ROUTE 29 — "Many a young trainer takes their first steps here."' }
+  },
+
+  cherrygrove: {
+    name:'Cherrygrove City',
+    grid:[
+      '################',
+      '#..HHH...HHH...#',
+      '#..HCH...HDH..s#',
+      '#..H.H...H.H...#',
+      '#.............WW#',
+      '#..........D..WW#',   // east warp back to route 29
+      '#.....s.......WW#',
+      '#..HHH........WW#',
+      '#..HDH........WW#',
+      '################'
+    ],
+    warps:[
+      {x:11, y:5, to:'route29', tx:1, ty:8},   // east path back to Route 29
+    ],
+    signs:{
+      '14,2':'CHERRYGROVE CITY — "The City of Cute, Fragrant Flowers."',
+      '6,6':'POKEMON CENTER: Heal your team for free!',
+    },
+    healTiles:{ '4,2':true }   // C tile: step here to fully heal party
+  }
+};
+
+window.SS = SS;
+
+/* =============================================================================
+ * pokemon.js  —  The battle model: Pokemon instances, stat/EXP/damage/catch maths.
+ *
+ * All formulas follow Generation IV (HeartGold/SoulSilver) as documented on
+ * Bulbapedia.  IVs/EVs/natures are held at neutral defaults to keep the model
+ * approachable; the hooks are here if you want to add them later.
+ * =========================================================================== */
+
+var SS = window.SS || {};
+
+SS.STAT_NAMES = ['hp','atk','def','spa','spd','spe'];
+
+/* Experience needed to *reach* a given level, by growth group. */
+SS.expForLevel = function (level, growth) {
+  var n = level;
+  if (growth === 'mediumSlow') {
+    var v = Math.floor(1.2 * n * n * n - 15 * n * n + 100 * n - 140);
+    return Math.max(0, v);
+  }
+  return n * n * n; // mediumFast
+};
+
+/* Build a full stat block for a species at a level (IV/EV = 0, neutral nature). */
+SS.computeStats = function (species, level) {
+  var b = species.base, s = {};
+  // HP has its own formula.
+  s.hp = Math.floor((2 * b[0]) * level / 100) + level + 10;
+  var keys = ['atk', 'def', 'spa', 'spd', 'spe'];
+  for (var i = 0; i < 5; i++) {
+    s[keys[i]] = Math.floor((2 * b[i + 1]) * level / 100) + 5;
+  }
+  return s;
+};
+
+/* Pick the (up to) 4 most-recent moves a species knows by a given level. */
+SS.movesUpToLevel = function (species, level) {
+  var learned = [];
+  for (var lv in species.learnset) {
+    if (Number(lv) <= level) learned.push({ lv: Number(lv), id: species.learnset[lv] });
+  }
+  learned.sort(function (a, b) { return a.lv - b.lv; });
+  var ids = [];
+  for (var i = 0; i < learned.length; i++) {
+    if (ids.indexOf(learned[i].id) === -1) ids.push(learned[i].id);
+  }
+  return ids.slice(-4);
+};
+
+/* Create a live Pokemon instance from a species key + level. */
+SS.createPokemon = function (speciesKey, level) {
+  var species = SS.DEX[speciesKey];
+  var stats = SS.computeStats(species, level);
+  var moveIds = SS.movesUpToLevel(species, level);
+  var moves = moveIds.map(function (id) {
+    return { id: id, pp: SS.MOVES[id].pp, maxpp: SS.MOVES[id].pp };
+  });
+  return {
+    key: speciesKey,
+    species: species,
+    name: species.name,
+    level: level,
+    exp: SS.expForLevel(level, species.growth),
+    stats: stats,
+    hp: stats.hp,
+    maxHP: stats.hp,
+    moves: moves,
+    status: null,          // 'burn' | 'poison' | 'paralysis' | ...
+    stages: { atk: 0, def: 0, spa: 0, spd: 0, spe: 0, acc: 0, eva: 0 }
+  };
+};
+
+/* Stat-stage multiplier (Gen IV). Used for atk/def/spa/spd/spe. */
+SS.stageMul = function (stage) {
+  return stage >= 0 ? (2 + stage) / 2 : 2 / (2 - stage);
+};
+
+/* Accuracy/evasion stage multiplier (Gen IV uses 3/(3+n)). */
+SS.accStageMul = function (stage) {
+  return stage >= 0 ? (3 + stage) / 3 : 3 / (3 - stage);
+};
+
+SS.effectiveStat = function (mon, key) {
+  return Math.floor(mon.stats[key] * SS.stageMul(mon.stages[key]));
+};
+
+/* Combined type effectiveness of a move type against a defender's type(s). */
+SS.typeEffectiveness = function (moveType, defTypes) {
+  var mult = 1, row = SS.TYPE_CHART[moveType] || {};
+  for (var i = 0; i < defTypes.length; i++) {
+    if (row[defTypes[i]] !== undefined) mult *= row[defTypes[i]];
+  }
+  return mult;
+};
+
+/* Gen-IV damage calculation. Returns {dmg, crit, eff, missed}. */
+SS.calcDamage = function (attacker, defender, move) {
+  // Accuracy check (with acc/eva stages).
+  var accMul = SS.accStageMul(attacker.stages.acc) / SS.accStageMul(defender.stages.eva);
+  var hitChance = (move.acc / 100) * accMul;
+  if (move.acc !== null && Math.random() > hitChance) {
+    return { dmg: 0, crit: false, eff: 1, missed: true };
+  }
+  if (move.category === 'status' || move.power === 0) {
+    return { dmg: 0, crit: false, eff: 1, missed: false };
+  }
+
+  var level = attacker.level;
+  var phys = move.category === 'physical';
+  var A = phys ? SS.effectiveStat(attacker, 'atk') : SS.effectiveStat(attacker, 'spa');
+  var D = phys ? SS.effectiveStat(defender, 'def') : SS.effectiveStat(defender, 'spd');
+
+  var base = Math.floor(Math.floor(Math.floor(2 * level / 5 + 2) * move.power * A / D) / 50) + 2;
+
+  // Critical hit (Gen IV: 1/16 base, 2x damage; high-crit moves 1/8).
+  var critChance = move.highCrit ? 0.125 : 0.0625;
+  var crit = Math.random() < critChance;
+  if (crit) base = Math.floor(base * 2);
+
+  // Random spread 0.85 – 1.00.
+  base = Math.floor(base * (Math.floor(Math.random() * 16) + 85) / 100);
+
+  // STAB.
+  if (attacker.species.types.indexOf(move.type) !== -1) base = Math.floor(base * 1.5);
+
+  // Type effectiveness.
+  var eff = SS.typeEffectiveness(move.type, defender.species.types);
+  base = Math.floor(base * eff);
+
+  if (eff > 0 && base < 1) base = 1;
+  return { dmg: base, crit: crit, eff: eff, missed: false };
+};
+
+/* Gen-III/IV capture algorithm. ballBonus e.g. 1 (Poke), 1.5 (Great), 2 (Ultra).
+ * Returns {caught, shakes} where shakes is 0-4. */
+SS.catchAttempt = function (target, ballBonus) {
+  var rate = target.species.catchRate;
+  var statusBonus = (target.status === 'sleep' || target.status === 'freeze') ? 2
+                  : (target.status ? 1.5 : 1);
+  var a = Math.floor(((3 * target.maxHP - 2 * target.hp) * rate * ballBonus) / (3 * target.maxHP));
+  a = Math.floor(a * statusBonus);
+  if (a >= 255) return { caught: true, shakes: 4 };
+
+  var b = Math.floor(1048560 / Math.floor(Math.sqrt(Math.floor(Math.sqrt(Math.floor(16711680 / a))))));
+  var shakes = 0;
+  for (var i = 0; i < 4; i++) {
+    if (Math.floor(Math.random() * 65536) < b) shakes++;
+    else break;
+  }
+  return { caught: shakes === 4, shakes: shakes };
+};
+
+/* EXP awarded to the victor for defeating `fainted` (simplified Gen-IV yield). */
+SS.expGain = function (fainted) {
+  return Math.floor(fainted.species.baseExp * fainted.level / 7);
+};
+
+/* Add EXP, leveling up as thresholds are crossed. Returns an array of level-up
+ * events: [{level, learned:[moveId,...], statGain:{...}}]. */
+SS.addExp = function (mon, amount) {
+  mon.exp += amount;
+  var events = [];
+  while (mon.level < 100 &&
+         mon.exp >= SS.expForLevel(mon.level + 1, mon.species.growth)) {
+    mon.level++;
+    var before = mon.stats;
+    var after = SS.computeStats(mon.species, mon.level);
+    var hpDelta = after.hp - before.hp;
+    mon.stats = after;
+    mon.maxHP = after.hp;
+    mon.hp = Math.min(mon.maxHP, mon.hp + hpDelta); // keep damage, grow max HP
+
+    // Learn any move taught exactly at this level (if space or replace oldest).
+    var learned = [];
+    var newMoveId = mon.species.learnset[mon.level];
+    if (newMoveId && !mon.moves.some(function (m) { return m.id === newMoveId; })) {
+      var entry = { id: newMoveId, pp: SS.MOVES[newMoveId].pp, maxpp: SS.MOVES[newMoveId].pp };
+      if (mon.moves.length < 4) mon.moves.push(entry);
+      else mon.moves.shift(), mon.moves.push(entry);
+      learned.push(newMoveId);
+    }
+    events.push({ level: mon.level, learned: learned });
+  }
+  return events;
+};
+
+window.SS = SS;
+
+/* =============================================================================
+ * render.js  —  All canvas drawing lives here.
+ *
+ * This is deliberately the ONLY file that touches the 2-D canvas.  The rest of
+ * the game works in an abstract grid/entity model (tile coordinates, Pokemon
+ * objects, menu state).  To move to 3-D later, you replace these draw functions
+ * with a WebGL/Three.js renderer that consumes the same model — the game logic
+ * in world.js / battle.js does not change.
+ * =========================================================================== */
+
+var SS = window.SS || {};
+
+SS.TILE = 24;         // logical pixels per tile
+SS.VIEW_W = 13;       // visible tiles across
+SS.VIEW_H = 11;       // visible tiles down
+
+// Recognisable stand-ins for sprites (swap for real art / 3-D models later).
+SS.EMOJI = {
+  chikorita:'🌿', cyndaquil:'🔥', totodile:'🐊', pidgey:'🐦', rattata:'🐀',
+  sentret:'🐿️', hoothoot:'🦉', caterpie:'🐛', weedle:'🐛'
+};
+
+// Flat colour of each single/first type (used for HP bars, badges, fallbacks).
+SS.TYPE_COLOR = {
+  normal:'#a8a878', fire:'#f08030', water:'#6890f0', electric:'#f8d030',
+  grass:'#78c850', ice:'#98d8d8', fighting:'#c03028', poison:'#a040a0',
+  ground:'#e0c068', flying:'#a890f0', psychic:'#f85888', bug:'#a8b820',
+  rock:'#b8a038', ghost:'#705898', dragon:'#7038f8', dark:'#705848', steel:'#b8b8d0'
+};
+
+SS.Render = (function () {
+  var cv, cx;
+
+  function init(canvas) {
+    cv = canvas;
+    cx = canvas.getContext('2d');
+    canvas.width = SS.VIEW_W * SS.TILE;
+    canvas.height = SS.VIEW_H * SS.TILE;
+    cx.imageSmoothingEnabled = false;
+    cx.textBaseline = 'middle';
+    cx.textAlign = 'center';
+  }
+
+  function clear(color) {
+    cx.fillStyle = color || '#000';
+    cx.fillRect(0, 0, cv.width, cv.height);
+  }
+
+  /* ---- overworld tile drawing --------------------------------------- */
+  function drawTile(ch, px, py) {
+    var T = SS.TILE;
+    switch (ch) {
+      case '.': paint('#8ecf6f', px, py); break;                 // short grass
+      case ' ': paint('#e8dcb5', px, py); break;                 // interior floor
+      case '~':                                                  // tall grass
+        paint('#4e9d4e', px, py);
+        cx.fillStyle = '#3c7d3c';
+        for (var i = 0; i < 3; i++) cx.fillRect(px + 4 + i * 6, py + T - 9, 3, 8);
+        break;
+      case '#':                                                  // tree
+        paint('#6a9f5a', px, py);
+        cx.fillStyle = '#2f6b34'; circle(px + T / 2, py + T / 2 - 1, T / 2 - 2);
+        cx.fillStyle = '#7a4a24'; cx.fillRect(px + T / 2 - 2, py + T - 6, 4, 5);
+        break;
+      case 'W':                                                  // water
+        paint('#4a80d0', px, py);
+        cx.fillStyle = '#6a9ee8'; cx.fillRect(px + 3, py + 6, 8, 2);
+        cx.fillRect(px + 12, py + 14, 8, 2);
+        break;
+      case 'H':                                                  // building wall
+        paint('#c98a5a', px, py);
+        cx.strokeStyle = '#8a5a34'; cx.strokeRect(px + .5, py + .5, T - 1, T - 1);
+        break;
+      case 'D':                                                  // door
+        paint('#c98a5a', px, py);
+        cx.fillStyle = '#402a18'; cx.fillRect(px + 5, py + 4, T - 10, T - 4);
+        break;
+      case 'C':                                                  // heal counter
+        paint('#e8dcb5', px, py);
+        cx.fillStyle = '#e04040'; cx.fillRect(px + 3, py + 8, T - 6, T - 12);
+        cx.fillStyle = '#fff'; circle(px + T / 2, py + T / 2 + 1, 3);
+        break;
+      case 'F':                                                  // flowers
+        paint('#8ecf6f', px, py);
+        cx.fillStyle = '#f070a0'; circle(px + 8, py + 9, 3); circle(px + 16, py + 15, 3);
+        break;
+      case 's':                                                  // sign
+        paint('#8ecf6f', px, py);
+        cx.fillStyle = '#8a5a34'; cx.fillRect(px + 6, py + 4, T - 12, T - 10);
+        cx.fillStyle = '#c98a5a'; cx.fillRect(px + 9, py + T - 8, 4, 6);
+        break;
+      case 'p':                                                  // starter machine
+        paint('#e8dcb5', px, py);
+        cx.fillStyle = '#c0c0c0'; cx.fillRect(px + 4, py + 6, T - 8, T - 8);
+        cx.fillStyle = '#e04040'; circle(px + T / 2, py + T / 2 + 1, 4);
+        cx.fillStyle = '#fff'; cx.fillRect(px + T / 2 - 4, py + T / 2, 8, 1);
+        break;
+      default: paint('#8ecf6f', px, py);
+    }
+  }
+
+  function paint(color, px, py) { cx.fillStyle = color; cx.fillRect(px, py, SS.TILE, SS.TILE); }
+  function circle(x, y, r) { cx.beginPath(); cx.arc(x, y, r, 0, 7); cx.fill(); }
+
+  /* Draw the player character at pixel (px,py) facing `dir`. */
+  function drawPlayer(px, py, dir) {
+    var T = SS.TILE, cxp = px + T / 2;
+    cx.fillStyle = '#e03030';                        // cap / body
+    cx.fillRect(px + 6, py + 4, T - 12, 6);
+    cx.fillStyle = '#f0c090';                        // face
+    cx.fillRect(px + 7, py + 9, T - 14, 5);
+    cx.fillStyle = '#3050c0';                        // torso
+    cx.fillRect(px + 6, py + 13, T - 12, 8);
+    cx.fillStyle = '#000';                            // facing marker (eyes/direction)
+    if (dir === 'down')  { cx.fillRect(cxp - 3, py + 11, 2, 2); cx.fillRect(cxp + 1, py + 11, 2, 2); }
+    if (dir === 'up')    { cx.fillRect(cxp - 3, py + 9, 2, 1); cx.fillRect(cxp + 1, py + 9, 2, 1); }
+    if (dir === 'left')  { cx.fillRect(px + 7, py + 11, 2, 2); }
+    if (dir === 'right') { cx.fillRect(px + T - 9, py + 11, 2, 2); }
+  }
+
+  function drawEmoji(emoji, x, y, size) {
+    cx.font = size + 'px serif';
+    cx.fillText(emoji, x, y);
+  }
+
+  /* ---- text + boxes -------------------------------------------------- */
+  function box(x, y, w, h, fill, border) {
+    cx.fillStyle = fill || '#fff';
+    cx.fillRect(x, y, w, h);
+    cx.strokeStyle = border || '#303030';
+    cx.lineWidth = 2;
+    cx.strokeRect(x + 1, y + 1, w - 2, h - 2);
+  }
+
+  // Word-wrapped left-aligned text. Returns number of lines drawn.
+  function text(str, x, y, maxW, lineH, color, size) {
+    cx.fillStyle = color || '#202020';
+    cx.font = (size || 10) + 'px monospace';
+    cx.textAlign = 'left';
+    var words = String(str).split(' '), line = '', ly = y, lines = 0;
+    for (var i = 0; i < words.length; i++) {
+      var test = line ? line + ' ' + words[i] : words[i];
+      if (cx.measureText(test).width > maxW && line) {
+        cx.fillText(line, x, ly); ly += lineH; lines++; line = words[i];
+      } else line = test;
+    }
+    if (line) { cx.fillText(line, x, ly); lines++; }
+    cx.textAlign = 'center';
+    return lines;
+  }
+
+  function textCentered(str, x, y, color, size) {
+    cx.fillStyle = color || '#202020';
+    cx.font = (size || 12) + 'px monospace';
+    cx.textAlign = 'center';
+    cx.fillText(str, x, y);
+  }
+
+  // Big bold centered title text.
+  function textBig(str, x, y, color, size) {
+    cx.fillStyle = color || '#fff';
+    cx.font = 'bold ' + (size || 20) + 'px "Trebuchet MS", Verdana, sans-serif';
+    cx.textAlign = 'center';
+    cx.fillText(str, x, y);
+  }
+
+  /* HP bar with green/amber/red fill. */
+  function hpBar(x, y, w, h, cur, max) {
+    var frac = Math.max(0, cur / max);
+    cx.fillStyle = '#404040'; cx.fillRect(x - 1, y - 1, w + 2, h + 2);
+    cx.fillStyle = '#101820'; cx.fillRect(x, y, w, h);
+    cx.fillStyle = frac > .5 ? '#48d048' : frac > .2 ? '#f0c020' : '#e04040';
+    cx.fillRect(x, y, Math.round(w * frac), h);
+  }
+
+  function ctx() { return cx; }
+  function canvas() { return cv; }
+
+  return { init: init, clear: clear, drawTile: drawTile, drawPlayer: drawPlayer,
+           drawEmoji: drawEmoji, box: box, text: text, textCentered: textCentered,
+           textBig: textBig, hpBar: hpBar, ctx: ctx, canvas: canvas };
+})();
+
+window.SS = SS;
+
+/* =============================================================================
+ * world.js  —  The overworld scene.
+ *
+ * Pure grid/entity logic (tile coordinates, walkability, warps, encounters).
+ * It reads the shared input from Game and renders through SS.Render.  Nothing
+ * here assumes a 2-D screen beyond the render calls, so a 3-D renderer can drop
+ * in unchanged.
+ * =========================================================================== */
+
+var SS = window.SS || {};
+
+SS.World = (function () {
+  var BLOCKED = '#WHFspC-';        // characters the player cannot stand on
+  var STEP_MS = 140;               // time to walk one tile
+
+  var G;                           // reference to Game (set in enter)
+
+  function map() { return SS.MAPS[G.player.map]; }
+
+  function tileAt(mp, x, y) {
+    if (y < 0 || y >= mp.grid.length) return '#';
+    var row = mp.grid[y];
+    if (x < 0 || x >= row.length) return '#';
+    return row[x];
+  }
+
+  function walkable(mp, x, y) {
+    return BLOCKED.indexOf(tileAt(mp, x, y)) === -1;
+  }
+
+  /* Place the player into a map (used on new game and on every warp). */
+  function enter(game, mapId, x, y, dir) {
+    G = game;
+    G.player.map = mapId;
+    G.player.x = x;
+    G.player.y = y;
+    G.player.dir = dir || 'down';
+    G.player.px = 0;                // pixel offset while stepping
+    G.player.py = 0;
+    G.player.moving = false;
+    G.player.justEntered = true;    // don't fire the warp we spawned on
+    G.scene = 'world';
+  }
+
+  /* Begin a step in a direction if the target tile is open. */
+  function tryStep(dir) {
+    var p = G.player, mp = map();
+    p.dir = dir;
+    var dx = dir === 'left' ? -1 : dir === 'right' ? 1 : 0;
+    var dy = dir === 'up' ? -1 : dir === 'down' ? 1 : 0;
+    if (walkable(mp, p.x + dx, p.y + dy)) {
+      p.moving = true;
+      p.justEntered = false;       // any real step re-enables warp triggers
+      p.stepDx = dx; p.stepDy = dy; p.stepT = 0;
+    }
+  }
+
+  function onArrive() {
+    var p = G.player, mp = map();
+    // Warp?
+    for (var i = 0; i < (mp.warps || []).length; i++) {
+      var w = mp.warps[i];
+      if (w.x === p.x && w.y === p.y && !p.justEntered) {
+        enter(G, w.to, w.tx, w.ty, p.dir);
+        G.say(['... ' + SS.MAPS[w.to].name + ' ...']);
+        return;
+      }
+    }
+    p.justEntered = false;
+
+    // Heal tile (Cherrygrove Poke-Center counter reachable variant).
+    var key = p.x + ',' + p.y;
+    if (mp.healTiles && mp.healTiles[key]) { healParty(); return; }
+
+    // Wild encounter in tall grass.
+    if (tileAt(mp, p.x, p.y) === '~' && SS.ENCOUNTERS[G.player.map]) {
+      if (Math.random() < 0.18) startWildEncounter();
+    }
+  }
+
+  function healParty() {
+    for (var i = 0; i < G.player.party.length; i++) {
+      var m = G.player.party[i];
+      m.hp = m.maxHP; m.status = null;
+      for (var j = 0; j < m.moves.length; j++) m.moves[j].pp = m.moves[j].maxpp;
+    }
+    G.say(['Your Pokemon are fully healed!', 'We hope to see you again!']);
+  }
+
+  function startWildEncounter() {
+    var table = SS.ENCOUNTERS[G.player.map];
+    var total = table.reduce(function (s, e) { return s + e.weight; }, 0);
+    var roll = Math.random() * total, pick = table[0];
+    for (var i = 0; i < table.length; i++) {
+      roll -= table[i].weight;
+      if (roll <= 0) { pick = table[i]; break; }
+    }
+    var lvl = pick.min + Math.floor(Math.random() * (pick.max - pick.min + 1));
+    var wild = SS.createPokemon(pick.species, lvl);
+    SS.Battle.start(G, wild);
+  }
+
+  /* A / interact button: read signs, use starter machine, talk to the counter. */
+  function interact() {
+    var p = G.player, mp = map();
+    var dx = p.dir === 'left' ? -1 : p.dir === 'right' ? 1 : 0;
+    var dy = p.dir === 'up' ? -1 : p.dir === 'down' ? 1 : 0;
+    var fx = p.x + dx, fy = p.y + dy;
+    var ch = tileAt(mp, fx, fy), key = fx + ',' + fy;
+
+    if (mp.starterTiles && mp.starterTiles[key] && G.player.party.length === 0) {
+      chooseStarter();
+      return;
+    }
+    if (mp.healTiles && mp.healTiles[key]) { healParty(); return; }
+    if (mp.signs && mp.signs[key]) { G.say([mp.signs[key]]); return; }
+    if (ch === 'p') { G.say(['The Poke Balls rest quietly.']); return; }
+  }
+
+  function chooseStarter() {
+    G.choose('PROF. ELM: Choose your first partner!', [
+      { label: 'Chikorita 🌿 (Grass)', value: 'chikorita' },
+      { label: 'Cyndaquil 🔥 (Fire)',  value: 'cyndaquil' },
+      { label: 'Totodile 🐊 (Water)',  value: 'totodile' }
+    ], function (key) {
+      var mon = SS.createPokemon(key, 5);
+      G.player.party.push(mon);
+      G.player.starter = key;
+      G.say([
+        'You received ' + mon.name + '!',
+        'ELM: Head west to Route 29 to train. Good luck!'
+      ]);
+      G.save();
+    });
+  }
+
+  /* ---- per-frame update -------------------------------------------- */
+  function update(dt) {
+    var p = G.player;
+    if (p.moving) {
+      p.stepT += dt;
+      var f = Math.min(1, p.stepT / STEP_MS);
+      p.px = p.stepDx * f * SS.TILE;
+      p.py = p.stepDy * f * SS.TILE;
+      if (f >= 1) {
+        p.x += p.stepDx; p.y += p.stepDy;
+        p.px = 0; p.py = 0; p.moving = false;
+        onArrive();
+      }
+      return;
+    }
+    // Not moving: accept a held direction.
+    var i = G.input;
+    if (i.up) tryStep('up');
+    else if (i.down) tryStep('down');
+    else if (i.left) tryStep('left');
+    else if (i.right) tryStep('right');
+  }
+
+  /* ---- draw --------------------------------------------------------- */
+  function draw() {
+    var R = SS.Render, T = SS.TILE, p = G.player, mp = map();
+    R.clear('#000');
+
+    // Camera centres on the player (in pixels), clamped to map bounds.
+    var camX = p.x * T + p.px - (SS.VIEW_W - 1) / 2 * T;
+    var camY = p.y * T + p.py - (SS.VIEW_H - 1) / 2 * T;
+
+    var startX = Math.floor(camX / T) - 1, endX = startX + SS.VIEW_W + 2;
+    var startY = Math.floor(camY / T) - 1, endY = startY + SS.VIEW_H + 2;
+    for (var y = startY; y <= endY; y++) {
+      for (var x = startX; x <= endX; x++) {
+        var ch = tileAt(mp, x, y);
+        R.drawTile(ch, x * T - camX, y * T - camY);
+      }
+    }
+
+    // Player is drawn at fixed screen centre.
+    R.drawPlayer(p.x * T + p.px - camX, p.y * T + p.py - camY, p.dir);
+
+    // Location banner.
+    R.box(4, 4, 128, 18, 'rgba(255,255,255,.85)', '#303030');
+    R.text(mp.name, 10, 14, 120, 12, '#202020', 10);
+  }
+
+  return { enter: enter, update: update, draw: draw, interact: interact,
+           _walkable: walkable };
+})();
+
+window.SS = SS;
+
+/* =============================================================================
+ * battle.js  —  The turn-based battle scene.
+ *
+ * Implements the classic FIGHT / BAG / POKEMON / RUN loop with Gen-IV damage,
+ * catching and EXP.  State changes are applied immediately and described through
+ * a message queue the player advances with the A button.
+ * =========================================================================== */
+
+var SS = window.SS || {};
+
+SS.Battle = (function () {
+  var G, B;
+
+  function start(game, wild) {
+    G = game;
+    B = {
+      wild: wild,
+      active: firstHealthy(),
+      state: 'msg',
+      menuIndex: 0,
+      moveIndex: 0,
+      subIndex: 0,
+      msgs: [],
+      after: null,
+      outcome: null,          // 'caught' | 'win' | 'lose' | 'flee'
+      caughtShakes: 0
+    };
+    G.scene = 'battle';
+    pushMsgs(['A wild ' + wild.name + ' (Lv.' + wild.level + ') appeared!',
+              'Go! ' + B.active.name + '!'], toMenu);
+  }
+
+  function firstHealthy() {
+    return G.player.party.find(function (m) { return m.hp > 0; }) || G.player.party[0];
+  }
+
+  function pushMsgs(list, after) {
+    B.msgs = B.msgs.concat(list);
+    B.after = after || B.after;
+    B.state = 'msg';
+  }
+
+  function toMenu() {
+    if (B.outcome) return finalize();
+    B.state = 'menu'; B.menuIndex = 0;
+  }
+
+  /* ---- turn resolution --------------------------------------------- */
+  function chooseMove(idx) {
+    var moveEntry = B.active.moves[idx];
+    if (!moveEntry || moveEntry.pp <= 0) { pushMsgs(['No PP left for that move!'], toMenu); return; }
+    resolveTurn({ type: 'move', moveEntry: moveEntry });
+  }
+
+  function wildAction() {
+    var usable = B.wild.moves.filter(function (m) { return m.pp > 0; });
+    var pick = usable.length ? usable[Math.floor(Math.random() * usable.length)] : null;
+    return pick ? { type: 'move', moveEntry: pick } : { type: 'struggle' };
+  }
+
+  function resolveTurn(playerAction) {
+    var msgs = [];
+    B.state = 'anim';
+
+    // Player-first actions: item / switch / run resolve before the wild moves.
+    if (playerAction.type !== 'move') {
+      handleNonMove(playerAction, msgs);
+      if (!B.outcome) { doWild(msgs); afterTurn(msgs); }
+      pushMsgs(msgs, doneTurn);
+      return;
+    }
+
+    var wa = wildAction();
+    var pMove = SS.MOVES[playerAction.moveEntry.id];
+    var wMove = wa.moveEntry ? SS.MOVES[wa.moveEntry.id] : { priority: 0 };
+
+    var pFirst = order(pMove, wMove, B.active, B.wild);
+    if (pFirst) {
+      doMove(B.active, B.wild, playerAction.moveEntry, msgs);
+      if (!B.wild.fainted && !B.outcome) doWild(msgs, wa);
+    } else {
+      doWild(msgs, wa);
+      if (B.active.hp > 0 && !B.outcome) doMove(B.active, B.wild, playerAction.moveEntry, msgs);
+    }
+    afterTurn(msgs);
+    pushMsgs(msgs, doneTurn);
+  }
+
+  // true if the player's move goes first.
+  function order(pMove, wMove, pMon, wMon) {
+    var pp = pMove.priority || 0, wp = wMove.priority || 0;
+    if (pp !== wp) return pp > wp;
+    var ps = SS.effectiveStat(pMon, 'spe'), ws = SS.effectiveStat(wMon, 'spe');
+    if (ps !== ws) return ps > ws;
+    return Math.random() < 0.5;
+  }
+
+  function doWild(msgs, wa) {
+    wa = wa || wildAction();
+    if (wa.type === 'struggle') { msgs.push('The wild ' + B.wild.name + ' has no moves left!'); return; }
+    doMove(B.wild, B.active, wa.moveEntry, msgs);
+  }
+
+  /* Execute one move from attacker to defender, appending messages. */
+  function doMove(attacker, defender, moveEntry, msgs) {
+    var move = SS.MOVES[moveEntry.id];
+    moveEntry.pp = Math.max(0, moveEntry.pp - 1);
+    msgs.push(label(attacker) + ' used ' + move.name + '!');
+
+    var res = SS.calcDamage(attacker, defender, move);
+    if (res.missed) { msgs.push('But it missed!'); return; }
+
+    if (move.category !== 'status' && move.power > 0) {
+      defender.hp = Math.max(0, defender.hp - res.dmg);
+      if (res.crit) msgs.push('A critical hit!');
+      if (res.eff === 0) msgs.push("It doesn't affect " + defender.name + '...');
+      else if (res.eff > 1) msgs.push("It's super effective!");
+      else if (res.eff < 1) msgs.push("It's not very effective...");
+    }
+
+    // Secondary / status-move effects.
+    if (move.effect) applyEffect(move.effect, attacker, defender, msgs);
+
+    if (defender.hp <= 0) { defender.fainted = true; onFaint(defender, attacker, msgs); }
+  }
+
+  function applyEffect(eff, attacker, defender, msgs) {
+    if (eff.chance && Math.random() * 100 >= eff.chance) return;
+    if (eff.stat) {
+      var target = eff.target === 'self' ? attacker : defender;
+      var cur = target.stages[eff.stat];
+      var next = Math.max(-6, Math.min(6, cur + eff.stages));
+      if (next === cur) { msgs.push(label(target) + "'s " + eff.stat.toUpperCase() + " won't go " + (eff.stages > 0 ? 'higher' : 'lower') + '!'); return; }
+      target.stages[eff.stat] = next;
+      msgs.push(label(target) + "'s " + eff.stat.toUpperCase() + (eff.stages > 0 ? ' rose!' : ' fell!'));
+    }
+    if (eff.status && !defender.status) {
+      defender.status = eff.status;
+      msgs.push(label(defender) + ' was ' + statusVerb(eff.status) + '!');
+    }
+  }
+
+  function statusVerb(s) { return s === 'burn' ? 'burned' : s === 'poison' ? 'poisoned' : s === 'paralysis' ? 'paralyzed' : 'afflicted'; }
+
+  /* End-of-turn: burn/poison chip damage. */
+  function afterTurn(msgs) {
+    [B.active, B.wild].forEach(function (m) {
+      if (m.fainted || m.hp <= 0) return;
+      if (m.status === 'burn' || m.status === 'poison') {
+        var chip = Math.max(1, Math.floor(m.maxHP / 8));
+        m.hp = Math.max(0, m.hp - chip);
+        msgs.push(label(m) + ' is hurt by its ' + m.status + '!');
+        if (m.hp <= 0) { m.fainted = true; onFaint(m, null, msgs); }
+      }
+    });
+  }
+
+  function onFaint(fainted, victor, msgs) {
+    msgs.push(label(fainted) + ' fainted!');
+    if (fainted === B.wild) {
+      var gain = SS.expGain(B.wild);
+      if (B.active.hp > 0) {
+        msgs.push(B.active.name + ' gained ' + gain + ' EXP!');
+        var events = SS.addExp(B.active, gain);
+        events.forEach(function (ev) {
+          msgs.push(B.active.name + ' grew to Lv.' + ev.level + '!');
+          ev.learned.forEach(function (id) { msgs.push(B.active.name + ' learned ' + SS.MOVES[id].name + '!'); });
+        });
+      }
+      B.outcome = 'win';
+    } else if (fainted === B.active) {
+      var next = G.player.party.find(function (m) { return m.hp > 0; });
+      if (!next) B.outcome = 'lose';
+      // else: player must pick a replacement (handled after messages drain).
+    }
+  }
+
+  /* ---- non-move actions -------------------------------------------- */
+  function handleNonMove(action, msgs) {
+    if (action.type === 'run') {
+      var pSpe = SS.effectiveStat(B.active, 'spe'), wSpe = SS.effectiveStat(B.wild, 'spe');
+      var odds = pSpe >= wSpe ? 1 : (pSpe * 128 / wSpe + 30) / 256;
+      if (Math.random() < odds) { msgs.push('Got away safely!'); B.outcome = 'flee'; }
+      else msgs.push("Can't escape!");
+    } else if (action.type === 'ball') {
+      throwBall(msgs);
+    } else if (action.type === 'potion') {
+      var heal = Math.min(20, B.active.maxHP - B.active.hp);
+      if (heal <= 0) { msgs.push('HP is already full!'); return; }
+      B.active.hp += heal; G.player.bag.potion--;
+      msgs.push('Used Potion. ' + B.active.name + ' recovered ' + heal + ' HP!');
+    } else if (action.type === 'switch') {
+      var mon = G.player.party[action.index];
+      msgs.push(B.active.name + ', come back!');
+      B.active = mon;
+      msgs.push('Go! ' + mon.name + '!');
+    }
+  }
+
+  function throwBall(msgs) {
+    G.player.bag.ball--;
+    msgs.push('You threw a Poke Ball!');
+    var r = SS.catchAttempt(B.wild, 1);
+    B.caughtShakes = r.shakes;
+    msgs.push(shakeText(r.shakes));
+    if (r.caught) {
+      msgs.push('Gotcha! ' + B.wild.name + ' was caught!');
+      if (G.player.party.length < 6) G.player.party.push(cleanCaught(B.wild));
+      else { G.player.box.push(cleanCaught(B.wild)); msgs.push(B.wild.name + ' was sent to the PC Box.'); }
+      B.outcome = 'caught';
+    } else {
+      msgs.push('Oh no! It broke free!');
+    }
+  }
+
+  function cleanCaught(w) { w.fainted = false; w.stages = { atk:0,def:0,spa:0,spd:0,spe:0,acc:0,eva:0 }; return w; }
+  function shakeText(n) { return n >= 3 ? 'Wobble... wobble... wobble...' : n === 2 ? 'Wobble... wobble...' : n === 1 ? 'Wobble...' : 'It broke free instantly!'; }
+
+  /* Called when a turn's messages have all been shown. */
+  function doneTurn() {
+    if (B.outcome) return finalize();
+    if (B.active.hp <= 0) {           // active fainted, replacements exist
+      openPartySwitch(true);
+      return;
+    }
+    toMenu();
+  }
+
+  function finalize() {
+    if (B.outcome === 'lose') {
+      G.player.party.forEach(function (m) { m.hp = m.maxHP; m.status = null; });
+      G.say(['You have no more Pokemon that can fight!',
+             'You scurried back to New Bark Town...'], function () {
+        SS.World.enter(G, 'newbark', 4, 4, 'down');
+      });
+    } else {
+      // win / caught / flee: clean battle stat stages, return to overworld.
+      G.player.party.forEach(function (m) {
+        m.fainted = false;
+        m.stages = { atk:0,def:0,spa:0,spd:0,spe:0,acc:0,eva:0 };
+      });
+      G.scene = 'world';
+    }
+    G.save();
+  }
+
+  /* ---- input -------------------------------------------------------- */
+  function openPartySwitch(forced) {
+    B.state = 'party'; B.subIndex = 0; B.forcedSwitch = !!forced;
+  }
+
+  function handleInput() {
+    var jp = G.justPressed;
+    if (B.state === 'msg') {
+      if (jp.a || jp.b) advanceMsg();
+      return;
+    }
+    if (B.state === 'menu') return menuInput(jp);
+    if (B.state === 'move') return moveInput(jp);
+    if (B.state === 'bag') return bagInput(jp);
+    if (B.state === 'party') return partyInput(jp);
+  }
+
+  function advanceMsg() {
+    if (B.msgs.length > 1) { B.msgs.shift(); return; }
+    B.msgs = [];
+    var cb = B.after; B.after = null;
+    if (cb) cb(); else toMenu();
+  }
+
+  function menuInput(jp) {
+    if (jp.up || jp.down) B.menuIndex ^= 2;             // toggle row
+    if (jp.left || jp.right) B.menuIndex ^= 1;          // toggle column
+    B.menuIndex = (B.menuIndex + 4) % 4;
+    if (jp.a) {
+      if (B.menuIndex === 0) { B.state = 'move'; B.moveIndex = 0; }
+      if (B.menuIndex === 1) { B.state = 'bag'; B.subIndex = 0; }
+      if (B.menuIndex === 2) openPartySwitch(false);
+      if (B.menuIndex === 3) resolveTurn({ type: 'run' });
+    }
+  }
+
+  function moveInput(jp) {
+    var n = B.active.moves.length;
+    if (jp.up) B.moveIndex = (B.moveIndex - 1 + n) % n;
+    if (jp.down) B.moveIndex = (B.moveIndex + 1) % n;
+    if (jp.b) { B.state = 'menu'; return; }
+    if (jp.a) chooseMove(B.moveIndex);
+  }
+
+  function bagInput(jp) {
+    var items = bagItems();
+    if (jp.up) B.subIndex = (B.subIndex - 1 + items.length) % items.length;
+    if (jp.down) B.subIndex = (B.subIndex + 1) % items.length;
+    if (jp.b) { B.state = 'menu'; return; }
+    if (jp.a) {
+      var it = items[B.subIndex];
+      if (it.count <= 0) return;
+      resolveTurn({ type: it.action });
+    }
+  }
+
+  function bagItems() {
+    return [
+      { name: 'Poke Ball', action: 'ball',   count: G.player.bag.ball },
+      { name: 'Potion',    action: 'potion', count: G.player.bag.potion }
+    ];
+  }
+
+  function partyInput(jp) {
+    var party = G.player.party;
+    if (jp.up) B.subIndex = (B.subIndex - 1 + party.length) % party.length;
+    if (jp.down) B.subIndex = (B.subIndex + 1) % party.length;
+    if (jp.b && !B.forcedSwitch) { B.state = 'menu'; return; }
+    if (jp.a) {
+      var mon = party[B.subIndex];
+      if (mon.hp <= 0) return;
+      if (mon === B.active) { if (!B.forcedSwitch) B.state = 'menu'; return; }
+      if (B.forcedSwitch) {
+        B.active = mon; B.forcedSwitch = false;
+        pushMsgs(['Go! ' + mon.name + '!'], toMenu);
+      } else {
+        resolveTurn({ type: 'switch', index: B.subIndex });
+      }
+    }
+  }
+
+  /* ---- helpers & drawing ------------------------------------------- */
+  function label(m) { return m === B.wild ? 'The wild ' + m.name : m.name; }
+
+  function draw() {
+    var R = SS.Render, W = SS.VIEW_W * SS.TILE, H = SS.VIEW_H * SS.TILE;
+    R.clear('#9fd8e8');
+    R.ctx().fillStyle = '#c8e8b0'; R.ctx().fillRect(0, H * 0.55, W, H * 0.45); // ground
+
+    // Foe (top-right) and player mon (bottom-left) info + emoji.
+    drawMonPanel(B.wild, W - 128, 12, true);
+    R.drawEmoji(SS.EMOJI[B.wild.key], W - 44, 78, 46);
+
+    if (B.active) {
+      drawMonPanel(B.active, 8, H - 96, false);
+      R.drawEmoji(SS.EMOJI[B.active.key], 44, H - 108, 52);
+    }
+
+    // Bottom text / menu box.
+    var by = H - 62;
+    R.box(0, by, W, 62, '#fff', '#303030');
+    if (B.state === 'msg') R.text(B.msgs[0] || '', 10, by + 16, W - 20, 13, '#202020', 10);
+    else if (B.state === 'menu') drawMainMenu(by);
+    else if (B.state === 'move') drawMoveList(by);
+    else if (B.state === 'bag') drawBag(by);
+    else if (B.state === 'party') drawParty(by);
+  }
+
+  function drawMonPanel(m, x, y, foe) {
+    var R = SS.Render;
+    R.box(x, y, 120, 34, 'rgba(255,255,255,.92)', '#303030');
+    R.text(m.name + ' Lv.' + m.level, x + 6, y + 11, 110, 11, '#202020', 9);
+    R.hpBar(x + 6, y + 20, 90, 6, m.hp, m.maxHP);
+    if (!foe) R.text(m.hp + '/' + m.maxHP, x + 6, y + 30, 110, 10, '#404040', 8);
+    if (m.status) R.text(m.status.slice(0, 3).toUpperCase(), x + 100, y + 22, 20, 10, '#c03028', 8);
+  }
+
+  function drawMainMenu(by) {
+    var R = SS.Render, opts = ['FIGHT', 'BAG', 'POKEMON', 'RUN'], W = SS.VIEW_W * SS.TILE;
+    for (var i = 0; i < 4; i++) {
+      var cx = (i % 2) * (W / 2) + 12, cy = by + 20 + Math.floor(i / 2) * 22;
+      R.text((B.menuIndex === i ? '▶ ' : '  ') + opts[i], cx, cy, W / 2, 12,
+             B.menuIndex === i ? '#e03030' : '#202020', 11);
+    }
+  }
+
+  function drawMoveList(by) {
+    var R = SS.Render, W = SS.VIEW_W * SS.TILE;
+    for (var i = 0; i < B.active.moves.length; i++) {
+      var me = B.active.moves[i], mv = SS.MOVES[me.id];
+      var y = by + 14 + i * 12;
+      R.text((B.moveIndex === i ? '▶ ' : '  ') + mv.name, 10, y, W - 90, 11,
+             B.moveIndex === i ? '#e03030' : '#202020', 9);
+    }
+    var sel = SS.MOVES[B.active.moves[B.moveIndex].id];
+    R.text(sel.type.toUpperCase() + '  PP ' + B.active.moves[B.moveIndex].pp + '/' + B.active.moves[B.moveIndex].maxpp,
+           W - 88, by + 16, 84, 11, '#404040', 8);
+    R.text('B: back', W - 88, by + 46, 84, 11, '#808080', 8);
+  }
+
+  function drawBag(by) {
+    var R = SS.Render, items = bagItems(), W = SS.VIEW_W * SS.TILE;
+    for (var i = 0; i < items.length; i++) {
+      var y = by + 16 + i * 14;
+      R.text((B.subIndex === i ? '▶ ' : '  ') + items[i].name + '  x' + items[i].count, 10, y, W - 20, 12,
+             B.subIndex === i ? '#e03030' : '#202020', 10);
+    }
+    R.text('B: back', W - 70, by + 46, 64, 11, '#808080', 8);
+  }
+
+  function drawParty(by) {
+    var R = SS.Render, party = G.player.party, W = SS.VIEW_W * SS.TILE;
+    for (var i = 0; i < party.length; i++) {
+      var m = party[i], y = by + 12 + i * 9;
+      var txt = (B.subIndex === i ? '▶ ' : '  ') + m.name + ' Lv.' + m.level + '  ' + m.hp + '/' + m.maxHP + (m.hp <= 0 ? ' (FNT)' : '');
+      R.text(txt, 10, y, W - 20, 9, m.hp <= 0 ? '#a04040' : (B.subIndex === i ? '#e03030' : '#202020'), 8);
+    }
+    if (!B.forcedSwitch) R.text('B: back', W - 70, by + 52, 64, 11, '#808080', 8);
+  }
+
+  return { start: start, handleInput: handleInput, draw: draw };
+})();
+
+window.SS = SS;
+
+/* =============================================================================
+ * main.js  —  Game controller: input, scene dispatch, dialog/menu overlays,
+ * save/load and the requestAnimationFrame loop.
+ * =========================================================================== */
+
+var SS = window.SS || {};
+
+SS.Game = (function () {
+  var SAVE_KEY = 'ss_save_v1';
+
+  var Game = {
+    scene: 'title',          // 'title' | 'world' | 'battle'
+    overlay: null,           // null | 'dialog' | 'choice' | 'menu' | 'party'
+    input: { up:false, down:false, left:false, right:false, a:false, b:false },
+    justPressed: {},
+    player: null,
+    dialog: null,
+    choiceState: null,
+    menuIndex: 0
+  };
+
+  /* ---- normalise map rows so every row is the same width (avoids OOB) --- */
+  function normalizeMaps() {
+    for (var id in SS.MAPS) {
+      var g = SS.MAPS[id].grid, w = 0, i;
+      for (i = 0; i < g.length; i++) w = Math.max(w, g[i].length);
+      for (i = 0; i < g.length; i++) {
+        while (g[i].length < w) g[i] += '#';
+      }
+    }
+  }
+
+  /* ---- new game / save / load -------------------------------------- */
+  function newGame() {
+    Game.player = {
+      map: 'newbark', x: 5, y: 6, dir: 'down',
+      px: 0, py: 0, moving: false,
+      party: [], box: [],
+      bag: { ball: 5, potion: 3 },
+      money: 3000, starter: null, flags: {}
+    };
+    SS.World.enter(Game, 'newbark', 5, 6, 'down');
+    Game.say([
+      'MOM: Oh, good morning!',
+      'PROF. ELM called — he needs your help. His LAB is the building to the RIGHT.',
+      'Walk up to a door or sign and press A to interact.'
+    ]);
+  }
+
+  function save() {
+    if (!Game.player) return;
+    var p = Game.player;
+    var data = {
+      map: p.map, x: p.x, y: p.y, dir: p.dir,
+      money: p.money, bag: p.bag, starter: p.starter, flags: p.flags,
+      party: p.party.map(serializeMon),
+      box: p.box.map(serializeMon)
+    };
+    try { localStorage.setItem(SAVE_KEY, JSON.stringify(data)); } catch (e) {}
+  }
+
+  function serializeMon(m) {
+    return { key: m.key, level: m.level, exp: m.exp, hp: m.hp, maxHP: m.maxHP,
+             stats: m.stats, status: m.status,
+             moves: m.moves.map(function (x) { return { id: x.id, pp: x.pp, maxpp: x.maxpp }; }) };
+  }
+
+  function deserializeMon(d) {
+    return {
+      key: d.key, species: SS.DEX[d.key], name: SS.DEX[d.key].name,
+      level: d.level, exp: d.exp, stats: d.stats, hp: d.hp, maxHP: d.maxHP,
+      moves: d.moves, status: d.status, fainted: false,
+      stages: { atk:0, def:0, spa:0, spd:0, spe:0, acc:0, eva:0 }
+    };
+  }
+
+  function hasSave() { try { return !!localStorage.getItem(SAVE_KEY); } catch (e) { return false; } }
+
+  function loadGame() {
+    var raw; try { raw = localStorage.getItem(SAVE_KEY); } catch (e) { return false; }
+    if (!raw) return false;
+    var d = JSON.parse(raw);
+    Game.player = {
+      map: d.map, x: d.x, y: d.y, dir: d.dir, px: 0, py: 0, moving: false,
+      party: d.party.map(deserializeMon), box: (d.box || []).map(deserializeMon),
+      bag: d.bag, money: d.money, starter: d.starter, flags: d.flags || {}
+    };
+    SS.World.enter(Game, d.map, d.x, d.y, d.dir);
+    return true;
+  }
+
+  /* ---- dialog + choice overlays ------------------------------------ */
+  Game.say = function (lines, onDone) {
+    Game.dialog = { lines: lines.slice(), onDone: onDone || null };
+    Game.overlay = 'dialog';
+  };
+
+  Game.choose = function (prompt, options, onPick) {
+    Game.choiceState = { prompt: prompt, options: options, index: 0, onPick: onPick };
+    Game.overlay = 'choice';
+  };
+
+  Game.save = save;
+
+  /* ---- input plumbing (touch buttons + keyboard) ------------------- */
+  Game.press = function (key) {
+    if (!Game.input[key]) Game.justPressed[key] = true;
+    Game.input[key] = true;
+  };
+  Game.release = function (key) { Game.input[key] = false; };
+
+  function bindKeyboard() {
+    var map = { ArrowUp:'up', ArrowDown:'down', ArrowLeft:'left', ArrowRight:'right',
+                w:'up', s:'down', a:'left', d:'right', z:'a', x:'b', Enter:'a',
+                ' ':'a', Backspace:'b' };
+    document.addEventListener('keydown', function (e) {
+      var k = map[e.key]; if (k) { Game.press(k); e.preventDefault(); }
+    });
+    document.addEventListener('keyup', function (e) {
+      var k = map[e.key]; if (k) { Game.release(k); e.preventDefault(); }
+    });
+  }
+
+  function bindButtons() {
+    var ids = { 'btn-up':'up', 'btn-down':'down', 'btn-left':'left', 'btn-right':'right',
+                'btn-a':'a', 'btn-b':'b' };
+    Object.keys(ids).forEach(function (id) {
+      var el = document.getElementById(id); if (!el) return;
+      var key = ids[id];
+      var down = function (e) { e.preventDefault(); Game.press(key); el.classList.add('held'); };
+      var up = function (e) { e.preventDefault(); Game.release(key); el.classList.remove('held'); };
+      el.addEventListener('touchstart', down, { passive: false });
+      el.addEventListener('touchend', up, { passive: false });
+      el.addEventListener('touchcancel', up, { passive: false });
+      el.addEventListener('mousedown', down);
+      el.addEventListener('mouseup', up);
+      el.addEventListener('mouseleave', up);
+    });
+    var menuBtn = document.getElementById('btn-menu');
+    if (menuBtn) menuBtn.addEventListener('click', function () {
+      if (Game.scene === 'world' && !Game.overlay) openMenu();
+    });
+  }
+
+  /* ---- pause / party menu ------------------------------------------ */
+  function openMenu() { Game.overlay = 'menu'; Game.menuIndex = 0; }
+  var MENU_OPTS = ['POKEMON', 'BAG', 'SAVE', 'CLOSE'];
+
+  function menuInput() {
+    var jp = Game.justPressed;
+    if (jp.up) Game.menuIndex = (Game.menuIndex + MENU_OPTS.length - 1) % MENU_OPTS.length;
+    if (jp.down) Game.menuIndex = (Game.menuIndex + 1) % MENU_OPTS.length;
+    if (jp.b) { Game.overlay = null; return; }
+    if (jp.a) {
+      var opt = MENU_OPTS[Game.menuIndex];
+      if (opt === 'CLOSE') Game.overlay = null;
+      else if (opt === 'SAVE') { save(); Game.overlay = null; Game.say(['Game saved.']); }
+      else if (opt === 'POKEMON') Game.overlay = 'party';
+      else if (opt === 'BAG') Game.say(['BAG:  Poke Ball x' + Game.player.bag.ball +
+                                        '     Potion x' + Game.player.bag.potion +
+                                        '     Money: ' + Game.player.money]);
+    }
+  }
+
+  function partyInput() {
+    var jp = Game.justPressed;
+    if (jp.b || jp.a) Game.overlay = 'menu';
+  }
+
+  /* ---- title -------------------------------------------------------- */
+  function titleInput() {
+    var jp = Game.justPressed;
+    var n = hasSave() ? 2 : 1;
+    if (jp.up) Game.menuIndex = (Game.menuIndex + n - 1) % n;
+    if (jp.down) Game.menuIndex = (Game.menuIndex + 1) % n;
+    if (jp.a) {
+      if (hasSave() && Game.menuIndex === 1) loadGame();
+      else newGame();
+    }
+  }
+
+  /* ---- dialog / choice input --------------------------------------- */
+  function dialogInput() {
+    var jp = Game.justPressed;
+    if (jp.a || jp.b) {
+      Game.dialog.lines.shift();
+      if (Game.dialog.lines.length === 0) {
+        var cb = Game.dialog.onDone; Game.dialog = null; Game.overlay = null;
+        if (cb) cb();
+      }
+    }
+  }
+
+  function choiceInput() {
+    var jp = Game.justPressed, c = Game.choiceState;
+    if (jp.up) c.index = (c.index + c.options.length - 1) % c.options.length;
+    if (jp.down) c.index = (c.index + 1) % c.options.length;
+    if (jp.a) {
+      var picked = c.options[c.index];
+      Game.choiceState = null; Game.overlay = null;
+      c.onPick(picked.value);
+    }
+  }
+
+  /* ---- main loop ---------------------------------------------------- */
+  var last = 0;
+  function loop(ts) {
+    var dt = last ? Math.min(50, ts - last) : 16; last = ts;
+    update(dt);
+    draw();
+    Game.justPressed = {};
+    requestAnimationFrame(loop);
+  }
+
+  function update(dt) {
+    if (Game.overlay === 'dialog') return dialogInput();
+    if (Game.overlay === 'choice') return choiceInput();
+    if (Game.overlay === 'menu') return menuInput();
+    if (Game.overlay === 'party') return partyInput();
+
+    if (Game.scene === 'title') return titleInput();
+    if (Game.scene === 'world') {
+      if (Game.justPressed.a && !Game.player.moving) SS.World.interact();
+      if (Game.justPressed.b && !Game.player.moving) openMenu();
+      SS.World.update(dt);
+    } else if (Game.scene === 'battle') {
+      SS.Battle.handleInput();
+    }
+  }
+
+  function draw() {
+    var R = SS.Render;
+    if (Game.scene === 'title') drawTitle();
+    else if (Game.scene === 'world') SS.World.draw();
+    else if (Game.scene === 'battle') SS.Battle.draw();
+
+    if (Game.overlay === 'dialog') drawDialog();
+    else if (Game.overlay === 'choice') drawChoice();
+    else if (Game.overlay === 'menu') drawMenu();
+    else if (Game.overlay === 'party') drawPartyScreen();
+  }
+
+  function drawTitle() {
+    var R = SS.Render, W = SS.VIEW_W * SS.TILE, H = SS.VIEW_H * SS.TILE;
+    R.clear('#204a80');
+    R.ctx().fillStyle = '#c0c0c0';
+    R.textBig('POKEMON', W / 2, 60, '#e8e8f0', 26);
+    R.textBig('SOUL SILVER', W / 2, 92, '#b8c8e8', 20);
+    R.drawEmoji('🌿🔥🐊', W / 2, 130, 26);
+    var n = hasSave() ? 2 : 1, opts = hasSave() ? ['NEW GAME', 'CONTINUE'] : ['NEW GAME'];
+    for (var i = 0; i < n; i++) {
+      R.textCentered((Game.menuIndex === i ? '▶ ' : '') + opts[i], W / 2, 175 + i * 24,
+                     Game.menuIndex === i ? '#ffe060' : '#ffffff', 13);
+    }
+    R.textCentered('a fan recreation — phone build', W / 2, H - 14, '#9fb8e0', 8);
+  }
+
+  function drawDialog() {
+    var R = SS.Render, W = SS.VIEW_W * SS.TILE, H = SS.VIEW_H * SS.TILE;
+    R.box(6, H - 60, W - 12, 54, '#fff', '#303030');
+    R.text(Game.dialog.lines[0], 14, H - 42, W - 28, 14, '#202020', 10);
+    R.text('press A ▶', W - 74, H - 14, 70, 10, '#909090', 8);
+  }
+
+  function drawChoice() {
+    var R = SS.Render, W = SS.VIEW_W * SS.TILE, H = SS.VIEW_H * SS.TILE, c = Game.choiceState;
+    R.box(6, H - 96, W - 12, 90, '#fff', '#303030');
+    R.text(c.prompt, 14, H - 80, W - 28, 12, '#202020', 9);
+    for (var i = 0; i < c.options.length; i++) {
+      R.text((c.index === i ? '▶ ' : '  ') + c.options[i].label, 18, H - 56 + i * 15, W - 30, 13,
+             c.index === i ? '#e03030' : '#202020', 10);
+    }
+  }
+
+  function drawMenu() {
+    var R = SS.Render, W = SS.VIEW_W * SS.TILE;
+    R.box(W - 96, 6, 90, 90, '#fff', '#303030');
+    for (var i = 0; i < MENU_OPTS.length; i++) {
+      R.text((Game.menuIndex === i ? '▶ ' : '  ') + MENU_OPTS[i], W - 88, 24 + i * 18, 84, 16,
+             Game.menuIndex === i ? '#e03030' : '#202020', 11);
+    }
+  }
+
+  function drawPartyScreen() {
+    var R = SS.Render, W = SS.VIEW_W * SS.TILE, H = SS.VIEW_H * SS.TILE, party = Game.player.party;
+    R.box(6, 6, W - 12, H - 12, '#f0f4ff', '#303030');
+    R.text('POKEMON', 16, 22, W - 32, 14, '#202020', 12);
+    if (party.length === 0) R.text('(no Pokemon yet — visit Elm\'s Lab)', 16, 44, W - 32, 12, '#606060', 9);
+    for (var i = 0; i < party.length; i++) {
+      var m = party[i], y = 44 + i * 34;
+      R.drawEmoji(SS.EMOJI[m.key], 30, y + 12, 26);
+      R.text(m.name + '  Lv.' + m.level, 52, y + 4, W - 70, 12, '#202020', 10);
+      R.hpBar(52, y + 12, 100, 6, m.hp, m.maxHP);
+      R.text(m.hp + '/' + m.maxHP + (m.status ? '  ' + m.status.toUpperCase() : ''), 160, y + 15, W - 170, 10, '#404040', 8);
+    }
+    R.text('B: close', W - 74, H - 20, 64, 11, '#808080', 8);
+  }
+
+  /* ---- boot --------------------------------------------------------- */
+  function boot() {
+    normalizeMaps();
+    var canvas = document.getElementById('game');
+    SS.Render.init(canvas);
+    bindKeyboard();
+    bindButtons();
+    requestAnimationFrame(loop);
+  }
+
+  return { boot: boot, ref: Game };
+})();
+
+window.SS = SS;
+
+SS.Game.boot();
+</script>
+
+</body>
+</html>
