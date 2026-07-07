@@ -1,0 +1,46 @@
+/* Phone-first layout for the SoulSilver recreation.
+   Screen on top, touch controls (D-pad + A/B + MENU) filling the rest. */
+
+:root { --bg:#12151c; --panel:#1c2130; --btn:#2c3346; --btn2:#39415a; --accent:#e03030; }
+
+* { box-sizing:border-box; -webkit-tap-highlight-color:transparent; user-select:none; -webkit-user-select:none; }
+html, body { margin:0; height:100%; overflow:hidden; background:var(--bg);
+  font-family:-apple-system, "Segoe UI", Roboto, sans-serif; position:fixed; width:100%; touch-action:none; }
+
+#app { display:flex; flex-direction:column; height:100%; height:100dvh; align-items:center; }
+
+/* ---- screen ---- */
+#screen-wrap { width:100%; display:flex; justify-content:center; align-items:center;
+  padding:8px 8px 4px; flex:0 0 auto; }
+#game { width:100%; max-width:calc((100dvh - 220px) * 1.18);   /* 13:11 aspect */
+  image-rendering:pixelated; image-rendering:crisp-edges;
+  border:3px solid #000; border-radius:6px; background:#000;
+  box-shadow:0 6px 20px rgba(0,0,0,.5); }
+
+/* ---- controls ---- */
+#controls { flex:1 1 auto; width:100%; max-width:520px; display:flex; align-items:center;
+  justify-content:space-between; padding:6px 20px 22px; gap:12px; }
+
+.dpad { position:relative; width:150px; height:150px; flex:0 0 auto; }
+.dpad button { position:absolute; width:50px; height:50px; background:var(--btn);
+  border:none; color:#aeb6c8; font-size:20px; border-radius:8px; }
+.dpad button.held { background:var(--accent); color:#fff; }
+#btn-up    { top:0; left:50px; border-radius:8px 8px 0 0; }
+#btn-down  { bottom:0; left:50px; border-radius:0 0 8px 8px; }
+#btn-left  { top:50px; left:0; border-radius:8px 0 0 8px; }
+#btn-right { top:50px; right:0; border-radius:0 8px 8px 0; }
+.dpad .hub { position:absolute; top:50px; left:50px; width:50px; height:50px; background:var(--btn); }
+
+.actions { display:flex; flex-direction:column; align-items:center; gap:14px; flex:0 0 auto; }
+.ab { display:flex; gap:18px; align-items:center; }
+.ab button { width:66px; height:66px; border-radius:50%; border:none; font-size:22px; font-weight:700;
+  color:#fff; box-shadow:0 4px 0 rgba(0,0,0,.35); }
+#btn-a { background:#d84040; }
+#btn-b { background:#4a5068; }
+#btn-a.held, #btn-b.held { transform:translateY(3px); box-shadow:none; filter:brightness(1.2); }
+#btn-menu { padding:8px 18px; border:none; border-radius:14px; background:var(--btn2); color:#cfd6e6;
+  font-size:12px; letter-spacing:1px; }
+
+.hint { color:#69718a; font-size:11px; text-align:center; padding:0 0 6px; }
+
+@media (min-width:900px) { #game { max-width:640px; } }

@@ -1,0 +1,48 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no, viewport-fit=cover">
+<meta name="apple-mobile-web-app-capable" content="yes">
+<meta name="mobile-web-app-capable" content="yes">
+<meta name="theme-color" content="#12151c">
+<title>Pokémon SoulSilver — Phone Recreation</title>
+<link rel="stylesheet" href="css/style.css">
+</head>
+<body>
+<div id="app">
+  <div id="screen-wrap">
+    <canvas id="game" width="312" height="264"></canvas>
+  </div>
+
+  <div class="hint">Arrows/WASD move · Z or A = confirm · X or B = back/menu</div>
+
+  <div id="controls">
+    <div class="dpad">
+      <button id="btn-up" aria-label="up">▲</button>
+      <button id="btn-left" aria-label="left">◀</button>
+      <span class="hub"></span>
+      <button id="btn-right" aria-label="right">▶</button>
+      <button id="btn-down" aria-label="down">▼</button>
+    </div>
+
+    <div class="actions">
+      <button id="btn-menu">MENU</button>
+      <div class="ab">
+        <button id="btn-b" aria-label="B">B</button>
+        <button id="btn-a" aria-label="A">A</button>
+      </div>
+    </div>
+  </div>
+</div>
+
+<!-- Load order matters: data -> model -> renderer -> scenes -> controller. -->
+<script src="js/data.js"></script>
+<script src="js/pokemon.js"></script>
+<script src="js/render.js"></script>
+<script src="js/world.js"></script>
+<script src="js/battle.js"></script>
+<script src="js/main.js"></script>
+<script>SS.Game.boot();</script>
+</body>
+</html>
